@@ -1,0 +1,30 @@
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RenomearTudo.Core", "src\RenomearTudo.Core\RenomearTudo.Core.csproj", "{3AE7D510-638B-45E3-A245-92B986438D72}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RenomearTudo.App", "src\RenomearTudo.App\RenomearTudo.App.csproj", "{707457E0-7607-4D9E-A8C2-E720DECA9FA4}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RenomearTudo.SmokeTests", "tests\RenomearTudo.SmokeTests\RenomearTudo.SmokeTests.csproj", "{378A00E2-B34E-47B2-A8FB-3C59737ACCFD}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{3AE7D510-638B-45E3-A245-92B986438D72}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{3AE7D510-638B-45E3-A245-92B986438D72}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{3AE7D510-638B-45E3-A245-92B986438D72}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{3AE7D510-638B-45E3-A245-92B986438D72}.Release|Any CPU.Build.0 = Release|Any CPU
+		{707457E0-7607-4D9E-A8C2-E720DECA9FA4}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{707457E0-7607-4D9E-A8C2-E720DECA9FA4}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{707457E0-7607-4D9E-A8C2-E720DECA9FA4}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{707457E0-7607-4D9E-A8C2-E720DECA9FA4}.Release|Any CPU.Build.0 = Release|Any CPU
+		{378A00E2-B34E-47B2-A8FB-3C59737ACCFD}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{378A00E2-B34E-47B2-A8FB-3C59737ACCFD}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{378A00E2-B34E-47B2-A8FB-3C59737ACCFD}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{378A00E2-B34E-47B2-A8FB-3C59737ACCFD}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+EndGlobal

@@ -1,0 +1,32 @@
+# Visual Studio / MSBuild
+.vs/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+[Bb]in/
+[Oo]bj/
+[Dd]ebug/
+[Rr]elease/
+artifacts/
+dist/
+TestResults/
+
+# Legacy Borland build artifacts (fontes antigos continuam preservados)
+*.obj
+*.tds
+*.csm
+*.ilc
+*.ild
+*.ilf
+*.ils
+*.map
+*.~cpp
+*.~h
+*.~dfm
+*.~bpr
+*.~ddp
+
+# Local application data
+*.tmp
+*.log

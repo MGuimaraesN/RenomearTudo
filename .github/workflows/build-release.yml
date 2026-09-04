@@ -1,0 +1,114 @@
+name: Build, Test and Release
+
+on:
+  push:
+    branches: [main, master]
+    tags: ['v*']
+  pull_request:
+    branches: [main, master]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  SOLUTION: RenomearTudo.sln
+  CONFIGURATION: Release
+
+jobs:
+  build:
+    name: Build and test
+    runs-on: windows-2025
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup MSBuild
+        uses: microsoft/setup-msbuild@v2
+        with:
+          msbuild-architecture: x64
+
+      - name: Restore
+        shell: pwsh
+        run: msbuild $env:SOLUTION /t:Restore /p:Configuration=$env:CONFIGURATION
+
+      - name: Build
+        shell: pwsh
+        run: msbuild $env:SOLUTION /m /p:Configuration=$env:CONFIGURATION /p:CI=true
+
+      - name: Smoke tests
+        shell: pwsh
+        run: .\tests\RenomearTudo.SmokeTests\bin\Release\net48\RenomearTudo.SmokeTests.exe
+
+      - name: Package
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $out = Join-Path $PWD 'dist'
+          $app = Join-Path $PWD 'src\RenomearTudo.App\bin\Release\net48'
+          $stage = Join-Path $out 'RenomearTudo'
+          New-Item -ItemType Directory -Force -Path $stage | Out-Null
+
+          Copy-Item "$app\RenomearTudo.exe" $stage
+          Copy-Item "$app\RenomearTudo.exe.config" $stage -ErrorAction SilentlyContinue
+          Copy-Item "$app\RenomearTudo.Core.dll" $stage
+          Copy-Item 'README.md' $stage
+          Copy-Item 'NOTICE.md' $stage
+          Copy-Item 'C#U00f3digo\LICENCA.TXT' "$stage\LICENCA-ORIGINAL.TXT"
+
+          Compress-Archive -Path "$stage\*" -DestinationPath "$out\RenomearTudo-Windows.zip" -CompressionLevel Optimal -Force
+          $hash = (Get-FileHash "$out\RenomearTudo-Windows.zip" -Algorithm SHA256).Hash.ToLowerInvariant()
+          "$hash  RenomearTudo-Windows.zip" | Set-Content "$out\SHA256SUMS.txt" -Encoding ascii
+
+      - name: Microsoft Defender scan
+        shell: pwsh
+        run: |
+          $candidate = Join-Path $env:ProgramFiles 'Windows Defender\MpCmdRun.exe'
+          if (Test-Path $candidate) {
+            & $candidate -Scan -ScanType 3 -File "$PWD\dist\RenomearTudo"
+            if ($LASTEXITCODE -ne 0) {
+              throw "Microsoft Defender retornou código $LASTEXITCODE"
+            }
+          } else {
+            Write-Host 'Microsoft Defender CLI não disponível neste runner; etapa ignorada.'
+          }
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: RenomearTudo-Windows
+          path: |
+            dist/RenomearTudo-Windows.zip
+            dist/SHA256SUMS.txt
+          if-no-files-found: error
+          retention-days: 14
+
+  release:
+    name: Publish release
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: windows-2025
+    permissions:
+      contents: write
+
+    steps:
+      - name: Download tested artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: RenomearTudo-Windows
+          path: dist
+
+      - name: Publish GitHub Release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create "${{ github.ref_name }}" `
+            "dist/RenomearTudo-Windows.zip" `
+            "dist/SHA256SUMS.txt" `
+            --title "Renomear Tudo ${{ github.ref_name }}" `
+            --generate-notes
