@@ -1,6 +1,6 @@
 # Modernização — Renomear Tudo 2.0
 
-A modernização foi feita sem apagar nem alterar os fontes C++Builder originais. A pasta histórica continua intacta e a implementação nova fica isolada em `src/`.
+A implementação atual foi isolada em `src/` e mantém a finalidade do projeto: renomear arquivos em massa com segurança, rapidez, prévia e controle. O pacote moderno não distribui o instalador, executáveis, objetos ou a antiga pasta de fontes C++Builder.
 
 | # | Ideia | Implementação |
 |---|---|---|
@@ -16,7 +16,7 @@ A modernização foi feita sem apagar nem alterar os fontes C++Builder originais
 | 10 | Conflitos | Duplicidade, destino existente, nome inválido e caminho incompatível |
 | 11 | Resumo de execução | Total/prontos/conflitos e confirmação antes do rename |
 | 12 | Desfazer | Undo transacional em duas fases |
-| 13 | Histórico | XML em `%LOCALAPPDATA%\\RenomearTudo`, até 50 operações |
+| 13 | Histórico | XML em `%LOCALAPPDATA%\RenomearTudo`, até 50 operações |
 | 14 | Presets | Salvar/carregar/excluir conjuntos de regras |
 | 15 | Busca/filtros | Busca textual, alterados, conflitos, válidos, ignorados e ordenações |
 | 16 | Numeração | Início, incremento, padding e template |
@@ -25,7 +25,7 @@ A modernização foi feita sem apagar nem alterar os fontes C++Builder originais
 | 19 | Detalhes | Caminho, tamanho, data e ID3v1 sob demanda |
 | 20 | Progresso | Barra, arquivo atual e cancelamento com rollback |
 
-## Funcionalidades herdadas do conceito original
+## Funcionalidades preservadas
 
 - Prefixo e sufixo.
 - Alteração de extensão.
@@ -49,7 +49,7 @@ A modernização foi feita sem apagar nem alterar os fontes C++Builder originais
 - O desfazer valida todas as origens/destinos antes de iniciar.
 - Nomes reservados do Windows são bloqueados.
 - O caminho usa limite conservador para manter compatibilidade com Windows 7.
-- Nenhum binário legado é usado pela aplicação moderna.
+- Nenhum binário legado é necessário ou distribuído.
 
 ## Otimização
 

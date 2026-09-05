@@ -6,7 +6,7 @@
 
 **Não fazer alterações desnecessárias que possam quebrar o projeto. Preservar a estrutura e o comportamento útil existentes e aplicar mudanças mínimas, isoladas e verificáveis.**
 
-Por isso, os fontes Borland/C++Builder originais permanecem no repositório como referência. A aplicação moderna vive em `src/` e não depende dos binários antigos.
+Por isso, a implementação moderna fica isolada em `src/` e não depende de binários ou fontes legados. O repositório atual contém apenas a implementação moderna, testes, documentação e automação de build.
 
 ## Nova aplicação
 
@@ -90,7 +90,6 @@ Trocas como `A.txt → B.txt` e `B.txt → A.txt` são executadas em duas fases 
 
 ```text
 RenomearTudo/
-├─ C#U00f3digo/                 # código original preservado
 ├─ src/
 │  ├─ RenomearTudo.Core/        # regras, validação, rename engine, histórico
 │  └─ RenomearTudo.App/         # WPF / UI
@@ -144,4 +143,4 @@ O alvo escolhido é `.NET Framework 4.8` porque ele pode ser instalado no **Wind
 
 ## Projeto original
 
-O projeto original e sua autoria permanecem preservados. Consulte `C#U00f3digo/LICENCA.TXT` e `NOTICE.md` antes de redistribuir publicamente uma versão modificada.
+A autoria e as condições históricas de uso do projeto original permanecem registradas em `NOTICE.md` e `LICENSE-ORIGINAL.txt`. O pacote moderno não inclui o instalador nem os fontes/binários legados.

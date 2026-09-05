@@ -12,21 +12,6 @@ artifacts/
 dist/
 TestResults/
 
-# Legacy Borland build artifacts (fontes antigos continuam preservados)
-*.obj
-*.tds
-*.csm
-*.ilc
-*.ild
-*.ilf
-*.ils
-*.map
-*.~cpp
-*.~h
-*.~dfm
-*.~bpr
-*.~ddp
-
 # Local application data
 *.tmp
 *.log

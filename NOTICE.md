@@ -1,7 +1,7 @@
 # Aviso e atribuição
 
-Este repositório contém o projeto original **Renomear Tudo**, de Daniel Saraiva Leite (Copyright 2004-2005), preservado sem remoção das informações de autoria.
+Esta modernização preserva o propósito do projeto **Renomear Tudo**, originalmente criado por Daniel Saraiva Leite (Copyright 2004-2005): renomear arquivos em massa com prévia, controle e segurança.
 
-A modernização em `src/` é uma implementação nova que preserva o propósito do aplicativo: renomear arquivos em massa com prévia, controle e segurança. Os fontes legados permanecem como referência histórica e funcional.
+O repositório modernizado distribui somente a implementação atual em `src/`, seus testes, documentação e arquivos necessários ao build/release.
 
-Antes de publicar ou redistribuir publicamente versões modificadas, confirme que a licença/autorização do projeto original permite a forma de distribuição pretendida. A licença histórica está preservada em `C#U00f3digo/LICENCA.TXT`.
+As condições históricas de uso fornecidas com o projeto original foram preservadas em `LICENSE-ORIGINAL.txt`. Antes de publicar ou redistribuir versões modificadas, confirme que a autorização/licença original permite a forma de distribuição pretendida.

@@ -2,6 +2,10 @@
 
 ## 2.0.0 - modernização inicial
 
+- Estrutura modernizada limpa, sem artefatos/fontes legados no pacote.
+- Corrigido empacotamento do GitHub Actions.
+- Actions atualizadas para runtimes atuais do GitHub.
+- Release idempotente: reexecuções atualizam os arquivos existentes.
 - Nova aplicação C# / WPF para .NET Framework 4.8.
 - Nova UI minimalista com tema claro/escuro/sistema.
 - Motor de preview e regras empilháveis.

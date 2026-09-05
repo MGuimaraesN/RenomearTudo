@@ -25,10 +25,12 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
 
       - name: Setup MSBuild
-        uses: microsoft/setup-msbuild@v2
+        uses: microsoft/setup-msbuild@v3
         with:
           msbuild-architecture: x64
 
@@ -51,14 +53,35 @@ jobs:
           $out = Join-Path $PWD 'dist'
           $app = Join-Path $PWD 'src\RenomearTudo.App\bin\Release\net48'
           $stage = Join-Path $out 'RenomearTudo'
+
+          if (Test-Path $out) {
+            Remove-Item $out -Recurse -Force
+          }
           New-Item -ItemType Directory -Force -Path $stage | Out-Null
 
-          Copy-Item "$app\RenomearTudo.exe" $stage
-          Copy-Item "$app\RenomearTudo.exe.config" $stage -ErrorAction SilentlyContinue
-          Copy-Item "$app\RenomearTudo.Core.dll" $stage
+          $required = @(
+            (Join-Path $app 'RenomearTudo.exe'),
+            (Join-Path $app 'RenomearTudo.Core.dll'),
+            (Join-Path $PWD 'README.md'),
+            (Join-Path $PWD 'NOTICE.md'),
+            (Join-Path $PWD 'LICENSE-ORIGINAL.txt')
+          )
+
+          foreach ($file in $required) {
+            if (-not (Test-Path $file -PathType Leaf)) {
+              throw "Arquivo obrigatório não encontrado: $file"
+            }
+          }
+
+          Copy-Item (Join-Path $app 'RenomearTudo.exe') $stage
+          $config = Join-Path $app 'RenomearTudo.exe.config'
+          if (Test-Path $config -PathType Leaf) {
+            Copy-Item $config $stage
+          }
+          Copy-Item (Join-Path $app 'RenomearTudo.Core.dll') $stage
           Copy-Item 'README.md' $stage
           Copy-Item 'NOTICE.md' $stage
-          Copy-Item 'C#U00f3digo\LICENCA.TXT' "$stage\LICENCA-ORIGINAL.TXT"
+          Copy-Item 'LICENSE-ORIGINAL.txt' $stage
 
           Compress-Archive -Path "$stage\*" -DestinationPath "$out\RenomearTudo-Windows.zip" -CompressionLevel Optimal -Force
           $hash = (Get-FileHash "$out\RenomearTudo-Windows.zip" -Algorithm SHA256).Hash.ToLowerInvariant()
@@ -67,9 +90,25 @@ jobs:
       - name: Microsoft Defender scan
         shell: pwsh
         run: |
-          $candidate = Join-Path $env:ProgramFiles 'Windows Defender\MpCmdRun.exe'
-          if (Test-Path $candidate) {
-            & $candidate -Scan -ScanType 3 -File "$PWD\dist\RenomearTudo"
+          $ErrorActionPreference = 'Stop'
+          $scanPath = Join-Path $PWD 'dist\RenomearTudo'
+          $candidates = @(
+            (Join-Path $env:ProgramFiles 'Windows Defender\MpCmdRun.exe')
+          )
+
+          $platformRoot = Join-Path $env:ProgramData 'Microsoft\Windows Defender\Platform'
+          if (Test-Path $platformRoot) {
+            $latest = Get-ChildItem $platformRoot -Directory -ErrorAction SilentlyContinue |
+              Sort-Object Name -Descending |
+              Select-Object -First 1
+            if ($latest) {
+              $candidates += Join-Path $latest.FullName 'MpCmdRun.exe'
+            }
+          }
+
+          $defender = $candidates | Where-Object { Test-Path $_ -PathType Leaf } | Select-Object -First 1
+          if ($defender) {
+            & $defender -Scan -ScanType 3 -File $scanPath
             if ($LASTEXITCODE -ne 0) {
               throw "Microsoft Defender retornou código $LASTEXITCODE"
             }
@@ -78,7 +117,7 @@ jobs:
           }
 
       - name: Upload build artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: RenomearTudo-Windows
           path: |
@@ -97,7 +136,7 @@ jobs:
 
     steps:
       - name: Download tested artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: RenomearTudo-Windows
           path: dist
@@ -106,9 +145,24 @@ jobs:
         shell: pwsh
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
         run: |
-          gh release create "${{ github.ref_name }}" `
-            "dist/RenomearTudo-Windows.zip" `
-            "dist/SHA256SUMS.txt" `
-            --title "Renomear Tudo ${{ github.ref_name }}" `
-            --generate-notes
+          $ErrorActionPreference = 'Stop'
+          $tag = '${{ github.ref_name }}'
+          $files = @(
+            'dist/RenomearTudo-Windows.zip',
+            'dist/SHA256SUMS.txt'
+          )
+
+          foreach ($file in $files) {
+            if (-not (Test-Path $file -PathType Leaf)) {
+              throw "Arquivo de release não encontrado: $file"
+            }
+          }
+
+          gh release view $tag *> $null
+          if ($LASTEXITCODE -eq 0) {
+            gh release upload $tag @files --clobber
+          } else {
+            gh release create $tag @files --title "Renomear Tudo $tag" --generate-notes
+          }

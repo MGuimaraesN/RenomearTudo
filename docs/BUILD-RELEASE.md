@@ -26,8 +26,8 @@ Os smoke tests verificam preview, substituição case-insensitive, troca de nome
 Workflow: `.github/workflows/build-release.yml`.
 
 - Runner fixado: `windows-2025`.
-- PR/push: build + smoke tests + Defender + Artifact.
-- Tag `v*`: o job de Release baixa exatamente o Artifact testado e publica o ZIP e o `SHA256SUMS.txt`.
+- PR/push: build + smoke tests + empacotamento limpo + Defender + Artifact.
+- Tag `v*`: o job de Release baixa exatamente o Artifact testado e publica/atualiza o ZIP e o `SHA256SUMS.txt`.
 - PRs não recebem token com permissão de escrita no repositório.
 
 ## Criar release
@@ -43,3 +43,10 @@ Arquivos esperados na aba **Releases**:
 RenomearTudo-Windows.zip
 SHA256SUMS.txt
 ```
+
+## Actions usadas
+
+- `actions/checkout@v7`
+- `microsoft/setup-msbuild@v3`
+- `actions/upload-artifact@v7`
+- `actions/download-artifact@v8`
