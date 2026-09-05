@@ -6,7 +6,7 @@ on:
       version:
         description: 'Versão da Release (ex.: 2.0.0)'
         required: true
-        default: '2.1.0'
+        default: '2.1.1'
         type: string
 
 concurrency:
@@ -90,6 +90,23 @@ jobs:
 
           Write-Host 'Repository structure: OK'
 
+      - name: Static XAML binding audit
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          [xml]$xaml = Get-Content 'src\RenomearTudo.App\MainWindow.xaml' -Raw
+          if (-not $xaml.DocumentElement) { throw 'MainWindow.xaml não pôde ser analisado como XML.' }
+
+          $raw = Get-Content 'src\RenomearTudo.App\MainWindow.xaml' -Raw
+          $runBindings = [regex]::Matches($raw, '<Run\b[^>]*Text="\{Binding[^"]+"[^>]*/?>')
+          $unsafe = @($runBindings | Where-Object { $_.Value -notmatch 'Mode=OneWay' })
+          if ($unsafe.Count -gt 0) {
+            $unsafe | ForEach-Object { Write-Error "Run binding sem Mode=OneWay: $($_.Value)" }
+            throw 'Bindings de texto inline sem Mode=OneWay podem causar crash em propriedades somente leitura.'
+          }
+
+          Write-Host 'Static XAML binding audit: OK'
+
       - name: Setup MSBuild
         uses: microsoft/setup-msbuild@v3
         with:
@@ -142,8 +159,12 @@ jobs:
             throw "O aplicativo falhou no teste real de inicialização. Código: $exitCode"
           }
 
+          if (-not (Select-String -Path $log -SimpleMatch 'Binding diagnostics: OK.' -Quiet)) {
+            throw 'O diagnóstico de bindings WPF não foi confirmado pelo startup-check.'
+          }
+
           if (-not (Select-String -Path $log -SimpleMatch 'Theme switch check: OK.' -Quiet)) {
-            throw 'A troca de tema Claro/Escuro não foi confirmada pelo startup-check.'
+            throw 'A troca de tema Claro/Escuro/Sistema não foi confirmada pelo startup-check.'
           }
 
           if (-not (Select-String -Path $log -SimpleMatch 'Startup check: OK.' -Quiet)) {
@@ -337,8 +358,15 @@ jobs:
             if (Test-Path $startupLog) { Get-Content $startupLog }
             throw "A aplicação instalada falhou no startup-check. Código: $($app.ExitCode)"
           }
-          if (-not (Test-Path $startupLog -PathType Leaf) -or -not (Select-String -Path $startupLog -SimpleMatch 'Theme switch check: OK.' -Quiet)) {
-            if (Test-Path $startupLog) { Get-Content $startupLog }
+          if (-not (Test-Path $startupLog -PathType Leaf)) {
+            throw 'A aplicação instalada não gerou o startup.log esperado.'
+          }
+          if (-not (Select-String -Path $startupLog -SimpleMatch 'Binding diagnostics: OK.' -Quiet)) {
+            Get-Content $startupLog
+            throw 'A aplicação instalada não confirmou Binding diagnostics: OK.'
+          }
+          if (-not (Select-String -Path $startupLog -SimpleMatch 'Theme switch check: OK.' -Quiet)) {
+            Get-Content $startupLog
             throw 'A aplicação instalada não confirmou Theme switch check: OK.'
           }
           if (-not (Select-String -Path $startupLog -SimpleMatch 'Startup check: OK.' -Quiet)) {

@@ -1,5 +1,14 @@
 # Changelog
 
+
+## 2.1.1 - correção definitiva de bindings e validação de UI
+
+- Corrige crash WPF em propriedades somente leitura usadas em `Run.Text` (`Size`, `Modified`, `Artist` e `Album`).
+- Explicita `Mode=OneWay` nos bindings de exibição críticos.
+- Startup-check passa a exercitar detalhes do arquivo, metadados, Histórico e troca de temas.
+- Startup-check captura erros do mecanismo de binding do WPF e falha o CI antes de publicar a Release.
+- Motor de renomeação e regras permanecem inalterados.
+
 ## 2.1.0 - redesign completo Fluent / Windows UI
 
 - Interface principal refeita do zero sem alterar o motor de renomeação.

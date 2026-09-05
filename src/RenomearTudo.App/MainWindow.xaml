@@ -131,7 +131,7 @@
                                 </ComboBox>
                             </StackPanel>
                         </Border>
-                        <TextBlock Text="Renomear Tudo 2.1.0" Style="{StaticResource CaptionText}" />
+                        <TextBlock Text="Renomear Tudo 2.1.1" Style="{StaticResource CaptionText}" />
                         <TextBlock Text="Fluent UI · Windows 7/10/11" Style="{StaticResource CaptionText}" Margin="0,2,0,0" />
                     </StackPanel>
                 </Grid>
@@ -292,8 +292,8 @@
                                                     <TextBlock Text="⋮" Foreground="{DynamicResource TertiaryTextBrush}" FontSize="17" VerticalAlignment="Center" Margin="0,0,4,0" />
                                                     <CheckBox Grid.Column="1" IsChecked="{Binding Enabled}" VerticalAlignment="Center" Margin="0,0,8,0" />
                                                     <StackPanel Grid.Column="2">
-                                                        <TextBlock Text="{Binding DisplayName}" FontFamily="Segoe UI Semibold" FontSize="12" />
-                                                        <TextBlock Text="{Binding Summary}" Style="{StaticResource CaptionText}" TextTrimming="CharacterEllipsis" Margin="0,2,0,0" />
+                                                        <TextBlock Text="{Binding DisplayName, Mode=OneWay}" FontFamily="Segoe UI Semibold" FontSize="12" />
+                                                        <TextBlock Text="{Binding Summary, Mode=OneWay}" Style="{StaticResource CaptionText}" TextTrimming="CharacterEllipsis" Margin="0,2,0,0" />
                                                     </StackPanel>
                                                 </Grid>
                                             </DataTemplate>
@@ -443,7 +443,7 @@
                                                     <DataGridTemplateColumn.CellTemplate>
                                                         <DataTemplate>
                                                             <Border Background="{DynamicResource SurfaceAltBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="10" Padding="8,3" HorizontalAlignment="Left">
-                                                                <TextBlock Text="{Binding Status}" Foreground="{Binding StatusKind, Converter={StaticResource StatusBrushConverter}}" FontFamily="Segoe UI Semibold" FontSize="11" />
+                                                                <TextBlock Text="{Binding Status, Mode=OneWay}" Foreground="{Binding StatusKind, Mode=OneWay, Converter={StaticResource StatusBrushConverter}}" FontFamily="Segoe UI Semibold" FontSize="11" />
                                                             </Border>
                                                         </DataTemplate>
                                                     </DataGridTemplateColumn.CellTemplate>
@@ -452,7 +452,7 @@
                                         </DataGrid>
 
                                         <!-- Empty state / drop zone -->
-                                        <Border Background="{DynamicResource SurfaceBrush}" Visibility="{Binding TotalCount, Converter={StaticResource ZeroVisibility}}" IsHitTestVisible="False">
+                                        <Border Background="{DynamicResource SurfaceBrush}" Visibility="{Binding TotalCount, Mode=OneWay, Converter={StaticResource ZeroVisibility}}" IsHitTestVisible="False">
                                             <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" MaxWidth="390">
                                                 <Border Width="62" Height="62" CornerRadius="16" Background="{DynamicResource AccentSubtleBrush}" HorizontalAlignment="Center">
                                                     <TextBlock Text="+" FontSize="32" FontFamily="Segoe UI" FontWeight="Light" Foreground="{DynamicResource AccentBrush}" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,-4,0,0" />
@@ -478,24 +478,24 @@
 
                                         <StackPanel Margin="0,0,14,0">
                                             <TextBlock Text="ARQUIVO SELECIONADO" Style="{StaticResource MiniLabel}" />
-                                            <TextBlock Text="{Binding SelectedFile.OriginalName}" TextTrimming="CharacterEllipsis" FontFamily="Segoe UI Semibold" Margin="0,4,0,0" />
-                                            <TextBlock Text="{Binding SelectedFile.OriginalPath}" Style="{StaticResource CaptionText}" TextTrimming="CharacterEllipsis" Margin="0,3,0,0" ToolTip="{Binding SelectedFile.OriginalPath}" />
+                                            <TextBlock Text="{Binding SelectedFile.OriginalName, Mode=OneWay}" TextTrimming="CharacterEllipsis" FontFamily="Segoe UI Semibold" Margin="0,4,0,0" />
+                                            <TextBlock Text="{Binding SelectedFile.OriginalPath, Mode=OneWay}" Style="{StaticResource CaptionText}" TextTrimming="CharacterEllipsis" Margin="0,3,0,0" ToolTip="{Binding SelectedFile.OriginalPath, Mode=OneWay}" />
                                         </StackPanel>
 
                                         <Border Grid.Column="1" Background="{DynamicResource BorderBrush}" Margin="0,0,14,0" />
 
                                         <StackPanel Grid.Column="2" Margin="0,0,14,0">
                                             <TextBlock Text="DETALHES" Style="{StaticResource MiniLabel}" />
-                                            <TextBlock Margin="0,4,0,0"><Run Text="Tamanho: "/><Run Text="{Binding SelectedFile.Size}"/></TextBlock>
-                                            <TextBlock Style="{StaticResource CaptionText}" Margin="0,3,0,0"><Run Text="Modificado: "/><Run Text="{Binding SelectedFile.Modified}"/></TextBlock>
+                                            <TextBlock Margin="0,4,0,0"><Run Text="Tamanho: "/><Run Text="{Binding SelectedFile.Size, Mode=OneWay}"/></TextBlock>
+                                            <TextBlock Style="{StaticResource CaptionText}" Margin="0,3,0,0"><Run Text="Modificado: "/><Run Text="{Binding SelectedFile.Modified, Mode=OneWay}"/></TextBlock>
                                         </StackPanel>
 
                                         <Border Grid.Column="3" Background="{DynamicResource BorderBrush}" Margin="0,0,14,0" />
 
                                         <StackPanel Grid.Column="4" Margin="0,0,14,0">
                                             <TextBlock Text="MP3 / ID3" Style="{StaticResource MiniLabel}" />
-                                            <TextBlock Text="{Binding SelectedFile.Metadata.Title}" TextTrimming="CharacterEllipsis" Margin="0,4,0,0" />
-                                            <TextBlock Style="{StaticResource CaptionText}" TextTrimming="CharacterEllipsis" Margin="0,3,0,0"><Run Text="{Binding SelectedFile.Metadata.Artist}"/><Run Text="  ·  "/><Run Text="{Binding SelectedFile.Metadata.Album}"/></TextBlock>
+                                            <TextBlock Text="{Binding SelectedFile.Metadata.Title, Mode=OneWay}" TextTrimming="CharacterEllipsis" Margin="0,4,0,0" />
+                                            <TextBlock Style="{StaticResource CaptionText}" TextTrimming="CharacterEllipsis" Margin="0,3,0,0"><Run Text="{Binding SelectedFile.Metadata.Artist, Mode=OneWay}"/><Run Text="  ·  "/><Run Text="{Binding SelectedFile.Metadata.Album, Mode=OneWay}"/></TextBlock>
                                         </StackPanel>
 
                                         <StackPanel Grid.Column="5" Orientation="Horizontal" VerticalAlignment="Center">
@@ -522,7 +522,7 @@
                                 </StackPanel>
 
                                 <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
-                                    <Button Style="{StaticResource SubtleButton}" Content="Cancelar" Command="{Binding CancelCommand}" Visibility="{Binding IsBusy, Converter={StaticResource BooleanToVisibilityConverter}}" Margin="0,0,8,0" />
+                                    <Button Style="{StaticResource SubtleButton}" Content="Cancelar" Command="{Binding CancelCommand}" Visibility="{Binding IsBusy, Mode=OneWay, Converter={StaticResource BooleanToVisibilityConverter}}" Margin="0,0,8,0" />
                                     <Button Style="{StaticResource PrimaryButton}" Command="{Binding RenameCommand}" MinWidth="210" MinHeight="40" FontSize="13">
                                         <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
                                             <TextBlock Text="Renomear" Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" FontFamily="Segoe UI Semibold" />
@@ -582,20 +582,20 @@
                                                     <ColumnDefinition Width="150" />
                                                 </Grid.ColumnDefinitions>
                                                 <StackPanel>
-                                                    <TextBlock Text="{Binding Timestamp, StringFormat={}{0:dd/MM/yyyy}}" FontFamily="Segoe UI Semibold" />
-                                                    <TextBlock Text="{Binding Timestamp, StringFormat={}{0:HH:mm}}" Style="{StaticResource CaptionText}" Margin="0,2,0,0" />
+                                                    <TextBlock Text="{Binding Timestamp, Mode=OneWay, StringFormat={}{0:dd/MM/yyyy}}" FontFamily="Segoe UI Semibold" />
+                                                    <TextBlock Text="{Binding Timestamp, Mode=OneWay, StringFormat={}{0:HH:mm}}" Style="{StaticResource CaptionText}" Margin="0,2,0,0" />
                                                 </StackPanel>
                                                 <StackPanel Grid.Column="1">
                                                     <TextBlock Text="ARQUIVOS" Style="{StaticResource MiniLabel}" />
-                                                    <TextBlock Text="{Binding Count}" FontFamily="Segoe UI Semibold" Margin="0,3,0,0" />
+                                                    <TextBlock Text="{Binding Count, Mode=OneWay}" FontFamily="Segoe UI Semibold" Margin="0,3,0,0" />
                                                 </StackPanel>
                                                 <StackPanel Grid.Column="2" Margin="0,0,18,0">
                                                     <TextBlock Text="LOCAL" Style="{StaticResource MiniLabel}" />
-                                                    <TextBlock Text="{Binding Folder}" TextTrimming="CharacterEllipsis" Margin="0,3,0,0" ToolTip="{Binding Folder}" />
+                                                    <TextBlock Text="{Binding Folder, Mode=OneWay}" TextTrimming="CharacterEllipsis" Margin="0,3,0,0" ToolTip="{Binding Folder, Mode=OneWay}" />
                                                 </StackPanel>
                                                 <StackPanel Grid.Column="3">
                                                     <TextBlock Text="RESULTADO" Style="{StaticResource MiniLabel}" />
-                                                    <TextBlock Text="{Binding Result}" Foreground="{DynamicResource SuccessBrush}" FontFamily="Segoe UI Semibold" Margin="0,3,0,0" />
+                                                    <TextBlock Text="{Binding Result, Mode=OneWay}" Foreground="{DynamicResource SuccessBrush}" FontFamily="Segoe UI Semibold" Margin="0,3,0,0" />
                                                 </StackPanel>
                                             </Grid>
                                         </DataTemplate>

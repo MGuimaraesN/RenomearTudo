@@ -1,11 +1,14 @@
 using System;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows;
+using System.Windows.Controls;
 using System.Windows.Threading;
 using RenomearTudo.App.Services;
+using RenomearTudo.Core.Models;
 
 namespace RenomearTudo.App
 {
@@ -22,6 +25,8 @@ namespace RenomearTudo.App
         public static int Main(string[] args)
         {
             var startupCheck = args != null && args.Any(a => string.Equals(a, "--startup-check", StringComparison.OrdinalIgnoreCase));
+            StringBuilder bindingTrace = null;
+            TextWriterTraceListener bindingListener = null;
 
             try
             {
@@ -30,14 +35,25 @@ namespace RenomearTudo.App
                 WriteLog("SO: " + Environment.OSVersion + " | 64-bit OS: " + Environment.Is64BitOperatingSystem + " | 64-bit processo: " + Environment.Is64BitProcess);
                 WriteLog("CLR: " + Environment.Version);
 
+                if (startupCheck)
+                {
+                    // Captura erros de binding que normalmente aparecem apenas no Output do WPF.
+                    // Uma Release não pode ser publicada com binding quebrado ou propriedade read-only
+                    // usada acidentalmente como TwoWay.
+                    bindingTrace = new StringBuilder();
+                    bindingListener = new TextWriterTraceListener(new StringWriter(bindingTrace));
+                    PresentationTraceSources.DataBindingSource.Switch.Level = SourceLevels.Error;
+                    PresentationTraceSources.DataBindingSource.Listeners.Add(bindingListener);
+                }
+
                 var app = new App();
                 RegisterUnhandledExceptionHandlers(app, startupCheck);
                 app.InitializeComponent();
 
                 var window = new MainWindow();
 
-                // Usado pelo GitHub Actions para validar que XAML, recursos, ViewModel,
-                // bindings da lista e a janela conseguem ser inicializados antes da Release.
+                // Usado pelo GitHub Actions para validar XAML, recursos, ViewModel,
+                // DataGrid, detalhes, Histórico, popups e temas antes da Release.
                 if (startupCheck)
                 {
                     var probePath = Path.Combine(Path.GetTempPath(), "RenomearTudo-startup-" + Guid.NewGuid().ToString("N") + ".txt");
@@ -53,26 +69,66 @@ namespace RenomearTudo.App
                             throw new InvalidOperationException("O arquivo de teste não foi carregado na lista.");
 
                         viewModel.SelectedFile = viewModel.Files[0];
-                        window.Show();
-                        window.UpdateLayout();
-                        window.Dispatcher.Invoke(() => { }, DispatcherPriority.ApplicationIdle);
-                        window.UpdateLayout();
+                        viewModel.Files[0].Model.Metadata = new Mp3Metadata
+                        {
+                            Title = "Faixa de teste",
+                            Artist = "Artista de teste",
+                            Album = "Álbum de teste"
+                        };
+                        viewModel.Files[0].Refresh();
 
-                        // Exercita a nova paleta completa. Isso detecta recursos ausentes e
-                        // regressões de tema antes de uma Release chegar ao usuário.
+                        var historyProbe = new OperationHistory
+                        {
+                            Folder = Path.GetTempPath(),
+                            Result = "Concluído"
+                        };
+                        historyProbe.Records.Add(new RenameRecord
+                        {
+                            OldPath = probePath,
+                            NewPath = Path.Combine(Path.GetTempPath(), "RenomearTudo-startup-renamed.txt")
+                        });
+                        viewModel.History.Insert(0, historyProbe);
+
+                        window.Show();
+                        PumpWindow(window);
+
+                        // Renderiza as duas páginas para que bindings que só aparecem em uma aba
+                        // também sejam verificados no CI.
+                        var tabs = window.FindName("WorkspaceTabs") as TabControl;
+                        if (tabs == null)
+                            throw new InvalidOperationException("WorkspaceTabs não foi localizado no teste de UI.");
+                        tabs.SelectedIndex = 1;
+                        PumpWindow(window);
+                        tabs.SelectedIndex = 0;
+                        PumpWindow(window);
+
+                        // Abre os popups dos ComboBoxes principais para materializar seus templates.
+                        ExerciseComboBox(window, "ThemeCombo");
+                        ExerciseComboBox(window, "RuleTypeCombo");
+
+                        // Exercita paleta completa e modo Sistema. Isso detecta recursos ausentes,
+                        // templates quebrados e regressões de tema antes da Release.
                         var previousTheme = ThemeService.CurrentMode;
-                        foreach (var theme in new[] { "Escuro", "Claro" })
+                        foreach (var theme in new[] { "Escuro", "Claro", "Sistema" })
                         {
                             ThemeService.Apply(theme);
-                            window.Dispatcher.Invoke(() => { }, DispatcherPriority.ApplicationIdle);
-                            window.UpdateLayout();
+                            PumpWindow(window);
+                            ExerciseComboBox(window, "ThemeCombo");
                         }
                         ThemeService.Apply(previousTheme);
-                        window.Dispatcher.Invoke(() => { }, DispatcherPriority.ApplicationIdle);
-                        window.UpdateLayout();
+                        PumpWindow(window);
+
+                        bindingListener?.Flush();
+                        var bindingErrors = bindingTrace?.ToString() ?? string.Empty;
+                        if (!string.IsNullOrWhiteSpace(bindingErrors))
+                        {
+                            WriteLog("Erros de binding WPF detectados:\n" + bindingErrors);
+                            throw new InvalidOperationException("Foram detectados erros de binding WPF durante o startup-check.");
+                        }
 
                         window.Close();
 
+                        WriteLog("Binding diagnostics: OK.");
                         WriteLog("Theme switch check: OK.");
                         WriteLog("Startup check: OK.");
                         return 0;
@@ -116,6 +172,41 @@ namespace RenomearTudo.App
 
                 return 1;
             }
+            finally
+            {
+                if (bindingListener != null)
+                {
+                    try
+                    {
+                        bindingListener.Flush();
+                        PresentationTraceSources.DataBindingSource.Listeners.Remove(bindingListener);
+                        bindingListener.Dispose();
+                    }
+                    catch
+                    {
+                        // Diagnóstico nunca deve mascarar o resultado principal.
+                    }
+                }
+            }
+        }
+
+        private static void PumpWindow(Window window)
+        {
+            window.UpdateLayout();
+            window.Dispatcher.Invoke(() => { }, DispatcherPriority.ApplicationIdle);
+            window.UpdateLayout();
+        }
+
+        private static void ExerciseComboBox(Window window, string name)
+        {
+            var combo = window.FindName(name) as ComboBox;
+            if (combo == null)
+                throw new InvalidOperationException("ComboBox obrigatório não localizado: " + name);
+
+            combo.IsDropDownOpen = true;
+            PumpWindow(window);
+            combo.IsDropDownOpen = false;
+            PumpWindow(window);
         }
 
         private static void RegisterUnhandledExceptionHandlers(Application app, bool startupCheck)
