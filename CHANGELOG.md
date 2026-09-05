@@ -1,5 +1,15 @@
 # Changelog
 
+## 2.0.2 - correção do teste de GUI e pipeline de Release
+
+- Corrigido falso negativo do `GUI startup test`: aplicativos WPF `WinExe` não fornecem `$LASTEXITCODE` de forma confiável quando iniciados diretamente pelo PowerShell.
+- O teste agora usa `Start-Process -PassThru`, aguarda o processo, valida o `ExitCode` real e exige `Startup check: OK.` no log.
+- Adicionado timeout de 30 segundos para evitar workflow preso caso a interface não finalize o teste.
+- O Inno Setup passa a ser instalado via Chocolatey somente se `ISCC.exe` não existir no runner.
+- Instalador usa `WizardStyle=modern` para maior compatibilidade entre versões do Inno Setup.
+- Adicionada opção de abrir o aplicativo ao finalizar a instalação.
+- Workflow continua exclusivamente manual (`workflow_dispatch`), sem build automático em push ou pull request.
+
 ## 2.0.1 - correções de distribuição e inicialização
 
 - Workflow alterado para execução exclusivamente manual (`workflow_dispatch`).

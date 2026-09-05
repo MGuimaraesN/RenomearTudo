@@ -6,7 +6,7 @@ on:
       version:
         description: 'Versão da Release (ex.: 2.0.0)'
         required: true
-        default: '2.0.1'
+        default: '2.0.2'
         type: string
 
 concurrency:
@@ -76,12 +76,41 @@ jobs:
         run: |
           $ErrorActionPreference = 'Stop'
           $exe = Join-Path $PWD 'src\RenomearTudo.App\bin\Release\net48\RenomearTudo.exe'
-          & $exe --startup-check
-          if ($LASTEXITCODE -ne 0) {
-            $log = Join-Path $env:LOCALAPPDATA 'RenomearTudo\logs\startup.log'
-            if (Test-Path $log) { Get-Content $log }
-            throw "O aplicativo falhou no teste real de inicialização. Código: $LASTEXITCODE"
+          $log = Join-Path $env:LOCALAPPDATA 'RenomearTudo\logs\startup.log'
+
+          if (-not (Test-Path $exe -PathType Leaf)) {
+            throw "Executável não encontrado para o teste de inicialização: $exe"
           }
+
+          # WinExe não atualiza $LASTEXITCODE de forma confiável quando iniciado com '&'.
+          # Start-Process -PassThru fornece o ExitCode real do processo.
+          if (Test-Path $log) { Remove-Item $log -Force -ErrorAction SilentlyContinue }
+          $process = Start-Process -FilePath $exe -ArgumentList '--startup-check' -PassThru
+
+          if (-not $process.WaitForExit(30000)) {
+            Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue
+            if (Test-Path $log) { Get-Content $log }
+            throw 'O aplicativo não concluiu o teste de inicialização em 30 segundos.'
+          }
+
+          $process.Refresh()
+          $exitCode = $process.ExitCode
+
+          if (Test-Path $log) {
+            Get-Content $log
+          } else {
+            throw 'O aplicativo terminou sem gerar o log de inicialização esperado.'
+          }
+
+          if ($exitCode -ne 0) {
+            throw "O aplicativo falhou no teste real de inicialização. Código: $exitCode"
+          }
+
+          if (-not (Select-String -Path $log -SimpleMatch 'Startup check: OK.' -Quiet)) {
+            throw 'O processo retornou sucesso, mas o startup-check não confirmou a inicialização completa.'
+          }
+
+          Write-Host 'GUI startup test: OK'
 
       - name: Prepare portable package
         shell: pwsh
@@ -156,9 +185,25 @@ jobs:
 
           $iscc = $candidates | Select-Object -First 1
           if (-not $iscc) {
-            throw 'ISCC.exe (Inno Setup) não foi encontrado no runner do GitHub.'
+            Write-Host 'Inno Setup não encontrado no runner. Instalando via Chocolatey...'
+            choco install innosetup --no-progress -y
+            if ($LASTEXITCODE -ne 0) {
+              throw "Falha ao instalar Inno Setup via Chocolatey. Código: $LASTEXITCODE"
+            }
+
+            $candidates = @(
+              (Get-Command ISCC.exe -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Source -ErrorAction SilentlyContinue),
+              'C:\Program Files (x86)\Inno Setup 6\ISCC.exe',
+              'C:\Program Files\Inno Setup 6\ISCC.exe'
+            ) | Where-Object { $_ -and (Test-Path $_ -PathType Leaf) }
+            $iscc = $candidates | Select-Object -First 1
           }
 
+          if (-not $iscc) {
+            throw 'ISCC.exe (Inno Setup) não pôde ser localizado nem instalado.'
+          }
+
+          Write-Host "Usando Inno Setup: $iscc"
           & $iscc "/DMyAppVersion=$env:VERSION" 'installer\RenomearTudo.iss'
           if ($LASTEXITCODE -ne 0) {
             throw "Inno Setup falhou com código $LASTEXITCODE"

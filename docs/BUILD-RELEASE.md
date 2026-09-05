@@ -34,7 +34,7 @@ Para publicar:
 1. GitHub → **Actions**.
 2. Abra **Build Release (Manual)**.
 3. **Run workflow**.
-4. Digite `2.0.1` (ou outra versão `X.Y.Z`).
+4. Digite `2.0.2` (ou outra versão `X.Y.Z`).
 
 Se todas as etapas passarem, o segundo job **Publish GitHub Release** roda obrigatoriamente. Não existe mais a antiga condição `startsWith(github.ref, 'refs/tags/v')`, que fazia o job ser pulado em execuções manuais.
 

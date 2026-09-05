@@ -22,7 +22,7 @@ OutputDir=..\dist
 OutputBaseFilename=RenomearTudo-Setup-{#MyAppVersion}
 Compression=lzma2/ultra64
 SolidCompression=yes
-WizardStyle=modern dynamic
+WizardStyle=modern
 MinVersion=6.1sp1
 PrivilegesRequired=admin
 UninstallDisplayName={#MyAppName}
@@ -147,3 +147,6 @@ begin
       'Reinicie o Windows e execute este instalador novamente.';
   end;
 end;
+
+[Run]
+Filename: "{app}\{#MyAppExeName}"; Description: "Abrir o Renomear Tudo"; Flags: nowait postinstall skipifsilent
