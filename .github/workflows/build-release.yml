@@ -1,16 +1,20 @@
-name: Build, Test and Release
+name: Build Release (Manual)
 
 on:
-  push:
-    branches: [main, master]
-    tags: ['v*']
-  pull_request:
-    branches: [main, master]
   workflow_dispatch:
+    inputs:
+      version:
+        description: 'Versão da Release (ex.: 2.0.0)'
+        required: true
+        default: '2.0.1'
+        type: string
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  group: manual-release-${{ github.repository }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
 
 env:
   SOLUTION: RenomearTudo.sln
@@ -18,12 +22,33 @@ env:
 
 jobs:
   build:
-    name: Build and test
+    name: Build, test and installer
     runs-on: windows-2025
     permissions:
       contents: read
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      tag: ${{ steps.version.outputs.tag }}
 
     steps:
+      - name: Validate version
+        id: version
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $version = '${{ inputs.version }}'.Trim()
+          if ($version.StartsWith('v', [System.StringComparison]::OrdinalIgnoreCase)) {
+            $version = $version.Substring(1)
+          }
+
+          if ($version -notmatch '^\d+\.\d+\.\d+$') {
+            throw 'Use uma versão no formato X.Y.Z, por exemplo 2.0.0.'
+          }
+
+          "version=$version" >> $env:GITHUB_OUTPUT
+          "tag=v$version" >> $env:GITHUB_OUTPUT
+          "VERSION=$version" >> $env:GITHUB_ENV
+
       - name: Checkout
         uses: actions/checkout@v7
         with:
@@ -40,27 +65,38 @@ jobs:
 
       - name: Build
         shell: pwsh
-        run: msbuild $env:SOLUTION /m /p:Configuration=$env:CONFIGURATION /p:CI=true
+        run: msbuild $env:SOLUTION /m /p:Configuration=$env:CONFIGURATION /p:CI=true /p:Version=$env:VERSION
 
-      - name: Smoke tests
+      - name: Core smoke tests
         shell: pwsh
         run: .\tests\RenomearTudo.SmokeTests\bin\Release\net48\RenomearTudo.SmokeTests.exe
 
-      - name: Package
+      - name: GUI startup test
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $exe = Join-Path $PWD 'src\RenomearTudo.App\bin\Release\net48\RenomearTudo.exe'
+          & $exe --startup-check
+          if ($LASTEXITCODE -ne 0) {
+            $log = Join-Path $env:LOCALAPPDATA 'RenomearTudo\logs\startup.log'
+            if (Test-Path $log) { Get-Content $log }
+            throw "O aplicativo falhou no teste real de inicialização. Código: $LASTEXITCODE"
+          }
+
+      - name: Prepare portable package
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
           $out = Join-Path $PWD 'dist'
           $app = Join-Path $PWD 'src\RenomearTudo.App\bin\Release\net48'
-          $stage = Join-Path $out 'RenomearTudo'
+          $stage = Join-Path $out 'portable\RenomearTudo'
 
-          if (Test-Path $out) {
-            Remove-Item $out -Recurse -Force
-          }
+          if (Test-Path $out) { Remove-Item $out -Recurse -Force }
           New-Item -ItemType Directory -Force -Path $stage | Out-Null
 
           $required = @(
             (Join-Path $app 'RenomearTudo.exe'),
+            (Join-Path $app 'RenomearTudo.exe.config'),
             (Join-Path $app 'RenomearTudo.Core.dll'),
             (Join-Path $PWD 'README.md'),
             (Join-Path $PWD 'NOTICE.md'),
@@ -74,36 +110,78 @@ jobs:
           }
 
           Copy-Item (Join-Path $app 'RenomearTudo.exe') $stage
-          $config = Join-Path $app 'RenomearTudo.exe.config'
-          if (Test-Path $config -PathType Leaf) {
-            Copy-Item $config $stage
-          }
+          Copy-Item (Join-Path $app 'RenomearTudo.exe.config') $stage
           Copy-Item (Join-Path $app 'RenomearTudo.Core.dll') $stage
           Copy-Item 'README.md' $stage
           Copy-Item 'NOTICE.md' $stage
           Copy-Item 'LICENSE-ORIGINAL.txt' $stage
 
-          Compress-Archive -Path "$stage\*" -DestinationPath "$out\RenomearTudo-Windows.zip" -CompressionLevel Optimal -Force
-          $hash = (Get-FileHash "$out\RenomearTudo-Windows.zip" -Algorithm SHA256).Hash.ToLowerInvariant()
-          "$hash  RenomearTudo-Windows.zip" | Set-Content "$out\SHA256SUMS.txt" -Encoding ascii
+          Compress-Archive -Path "$stage\*" -DestinationPath "$out\RenomearTudo-Portable-$env:VERSION.zip" -CompressionLevel Optimal -Force
+
+      - name: Download offline .NET Framework 4.8 prerequisite
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $dir = Join-Path $PWD 'installer\prerequisites'
+          $file = Join-Path $dir 'NDP48-x86-x64-AllOS-ENU.exe'
+          New-Item -ItemType Directory -Force -Path $dir | Out-Null
+
+          $url = 'https://download.microsoft.com/download/f/3/a/f3a6af84-da23-40a5-8d1c-49cc10c8e76f/NDP48-x86-x64-AllOS-ENU.exe'
+          Invoke-WebRequest -Uri $url -OutFile $file -UseBasicParsing
+
+          if (-not (Test-Path $file -PathType Leaf) -or (Get-Item $file).Length -lt 50MB) {
+            throw 'O instalador offline do .NET Framework 4.8 não foi baixado corretamente.'
+          }
+
+          $signature = Get-AuthenticodeSignature $file
+          if ($signature.Status -ne 'Valid') {
+            throw "Assinatura do .NET Framework inválida: $($signature.Status)"
+          }
+          if ($signature.SignerCertificate.Subject -notmatch 'Microsoft') {
+            throw "O pré-requisito não está assinado pela Microsoft: $($signature.SignerCertificate.Subject)"
+          }
+
+          Write-Host "Pré-requisito Microsoft validado: $($signature.SignerCertificate.Subject)"
+          Get-FileHash $file -Algorithm SHA256 | Format-List
+
+      - name: Build offline installer
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $candidates = @(
+            (Get-Command ISCC.exe -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Source -ErrorAction SilentlyContinue),
+            'C:\Program Files (x86)\Inno Setup 6\ISCC.exe',
+            'C:\Program Files\Inno Setup 6\ISCC.exe'
+          ) | Where-Object { $_ -and (Test-Path $_ -PathType Leaf) }
+
+          $iscc = $candidates | Select-Object -First 1
+          if (-not $iscc) {
+            throw 'ISCC.exe (Inno Setup) não foi encontrado no runner do GitHub.'
+          }
+
+          & $iscc "/DMyAppVersion=$env:VERSION" 'installer\RenomearTudo.iss'
+          if ($LASTEXITCODE -ne 0) {
+            throw "Inno Setup falhou com código $LASTEXITCODE"
+          }
+
+          $setup = Join-Path $PWD "dist\RenomearTudo-Setup-$env:VERSION.exe"
+          if (-not (Test-Path $setup -PathType Leaf)) {
+            throw "O instalador esperado não foi gerado: $setup"
+          }
 
       - name: Microsoft Defender scan
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
-          $scanPath = Join-Path $PWD 'dist\RenomearTudo'
-          $candidates = @(
-            (Join-Path $env:ProgramFiles 'Windows Defender\MpCmdRun.exe')
-          )
-
+          $scanPath = Join-Path $PWD 'dist'
+          $candidates = @((Join-Path $env:ProgramFiles 'Windows Defender\MpCmdRun.exe'))
           $platformRoot = Join-Path $env:ProgramData 'Microsoft\Windows Defender\Platform'
+
           if (Test-Path $platformRoot) {
             $latest = Get-ChildItem $platformRoot -Directory -ErrorAction SilentlyContinue |
               Sort-Object Name -Descending |
               Select-Object -First 1
-            if ($latest) {
-              $candidates += Join-Path $latest.FullName 'MpCmdRun.exe'
-            }
+            if ($latest) { $candidates += Join-Path $latest.FullName 'MpCmdRun.exe' }
           }
 
           $defender = $candidates | Where-Object { Test-Path $_ -PathType Leaf } | Select-Object -First 1
@@ -113,56 +191,79 @@ jobs:
               throw "Microsoft Defender retornou código $LASTEXITCODE"
             }
           } else {
-            Write-Host 'Microsoft Defender CLI não disponível neste runner; etapa ignorada.'
+            Write-Warning 'Microsoft Defender CLI não está disponível neste runner.'
           }
+
+      - name: Generate SHA256 checksums
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $files = @(
+            "dist\RenomearTudo-Setup-$env:VERSION.exe",
+            "dist\RenomearTudo-Portable-$env:VERSION.zip"
+          )
+
+          $lines = foreach ($file in $files) {
+            if (-not (Test-Path $file -PathType Leaf)) { throw "Arquivo ausente: $file" }
+            $hash = (Get-FileHash $file -Algorithm SHA256).Hash.ToLowerInvariant()
+            "$hash  $([System.IO.Path]::GetFileName($file))"
+          }
+          $lines | Set-Content 'dist\SHA256SUMS.txt' -Encoding ascii
+          Get-Content 'dist\SHA256SUMS.txt'
 
       - name: Upload build artifact
         uses: actions/upload-artifact@v7
         with:
-          name: RenomearTudo-Windows
+          name: RenomearTudo-${{ steps.version.outputs.tag }}
           path: |
-            dist/RenomearTudo-Windows.zip
+            dist/RenomearTudo-Setup-${{ steps.version.outputs.version }}.exe
+            dist/RenomearTudo-Portable-${{ steps.version.outputs.version }}.zip
             dist/SHA256SUMS.txt
           if-no-files-found: error
           retention-days: 14
 
   release:
-    name: Publish release
+    name: Publish GitHub Release
     needs: build
-    if: startsWith(github.ref, 'refs/tags/v')
     runs-on: windows-2025
     permissions:
       contents: write
 
     steps:
-      - name: Download tested artifact
+      - name: Download tested artifacts
         uses: actions/download-artifact@v8
         with:
-          name: RenomearTudo-Windows
+          name: RenomearTudo-${{ needs.build.outputs.tag }}
           path: dist
 
-      - name: Publish GitHub Release
+      - name: Publish or update Release
         shell: pwsh
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ needs.build.outputs.tag }}
+          RELEASE_VERSION: ${{ needs.build.outputs.version }}
+          TARGET_SHA: ${{ github.sha }}
         run: |
           $ErrorActionPreference = 'Stop'
-          $tag = '${{ github.ref_name }}'
           $files = @(
-            'dist/RenomearTudo-Windows.zip',
-            'dist/SHA256SUMS.txt'
+            "dist\RenomearTudo-Setup-$env:RELEASE_VERSION.exe",
+            "dist\RenomearTudo-Portable-$env:RELEASE_VERSION.zip",
+            'dist\SHA256SUMS.txt'
           )
 
           foreach ($file in $files) {
             if (-not (Test-Path $file -PathType Leaf)) {
-              throw "Arquivo de release não encontrado: $file"
+              throw "Arquivo de Release não encontrado: $file"
             }
           }
 
-          gh release view $tag *> $null
+          gh release view $env:RELEASE_TAG *> $null
           if ($LASTEXITCODE -eq 0) {
-            gh release upload $tag @files --clobber
+            gh release upload $env:RELEASE_TAG @files --clobber
           } else {
-            gh release create $tag @files --title "Renomear Tudo $tag" --generate-notes
+            gh release create $env:RELEASE_TAG @files `
+              --target $env:TARGET_SHA `
+              --title "Renomear Tudo $env:RELEASE_TAG" `
+              --generate-notes
           }

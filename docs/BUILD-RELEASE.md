@@ -5,8 +5,9 @@
 - Windows 10 ou 11 para desenvolvimento.
 - Visual Studio 2022+ com **.NET desktop development**.
 - .NET Framework 4.8 Developer/Targeting Pack.
+- Inno Setup 6.6+ somente se quiser gerar o instalador localmente.
 
-## Build
+## Build local
 
 ```powershell
 msbuild RenomearTudo.sln /t:Restore /p:Configuration=Release
@@ -17,32 +18,56 @@ msbuild RenomearTudo.sln /m /p:Configuration=Release
 
 ```powershell
 .\tests\RenomearTudo.SmokeTests\bin\Release\net48\RenomearTudo.SmokeTests.exe
+.\src\RenomearTudo.App\bin\Release\net48\RenomearTudo.exe --startup-check
 ```
 
-Os smoke tests verificam preview, substituição case-insensitive, troca de nomes em duas fases, rename somente por caixa, conflitos duplicados, nomes reservados e remoção de acentos.
+O segundo comando é importante: além do motor, ele inicializa de verdade WPF, XAML, recursos, ViewModel e a janela principal. Assim erros que só aparecem ao abrir o programa impedem uma Release.
 
-## GitHub Actions
+## GitHub Actions: somente manual
 
 Workflow: `.github/workflows/build-release.yml`.
 
-- Runner fixado: `windows-2025`.
-- PR/push: build + smoke tests + empacotamento limpo + Defender + Artifact.
-- Tag `v*`: o job de Release baixa exatamente o Artifact testado e publica/atualiza o ZIP e o `SHA256SUMS.txt`.
-- PRs não recebem token com permissão de escrita no repositório.
+Ele possui apenas `workflow_dispatch`; portanto, **não roda em push, PR ou criação de tag**.
 
-## Criar release
+Para publicar:
 
-```bash
-git tag v2.0.0
-git push origin v2.0.0
-```
+1. GitHub → **Actions**.
+2. Abra **Build Release (Manual)**.
+3. **Run workflow**.
+4. Digite `2.0.1` (ou outra versão `X.Y.Z`).
 
-Arquivos esperados na aba **Releases**:
+Se todas as etapas passarem, o segundo job **Publish GitHub Release** roda obrigatoriamente. Não existe mais a antiga condição `startsWith(github.ref, 'refs/tags/v')`, que fazia o job ser pulado em execuções manuais.
+
+## Etapas do workflow
+
+1. valida a versão;
+2. restaura e compila a solução;
+3. executa os smoke tests;
+4. executa `RenomearTudo.exe --startup-check`;
+5. monta a versão portátil;
+6. baixa o instalador offline oficial do .NET Framework 4.8;
+7. valida a assinatura Authenticode da Microsoft;
+8. compila `installer/RenomearTudo.iss` com Inno Setup;
+9. verifica os artefatos com Microsoft Defender;
+10. gera `SHA256SUMS.txt`;
+11. envia o Artifact;
+12. cria ou atualiza a GitHub Release `vX.Y.Z`.
+
+## Artefatos
 
 ```text
-RenomearTudo-Windows.zip
+RenomearTudo-Setup-X.Y.Z.exe
+RenomearTudo-Portable-X.Y.Z.zip
 SHA256SUMS.txt
 ```
+
+O **Setup** é a distribuição recomendada. Ele contém o runtime offline do .NET Framework 4.8 e instala o pré-requisito apenas quando necessário.
+
+A versão portátil é mantida por conveniência, mas exige .NET Framework 4.8 ou superior já instalado.
+
+## Windows 7
+
+O instalador exige Windows 7 SP1 ou superior. Windows 7 está fora de suporte; use a compatibilidade apenas quando realmente necessária e mantenha o sistema com as últimas atualizações disponíveis.
 
 ## Actions usadas
 

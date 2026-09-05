@@ -1,5 +1,17 @@
 # Changelog
 
+## 2.0.1 - correções de distribuição e inicialização
+
+- Workflow alterado para execução exclusivamente manual (`workflow_dispatch`).
+- Release manual não é mais pulada por depender de tag `v*`.
+- Workflow cria/atualiza automaticamente a tag e a GitHub Release da versão informada.
+- Adicionado teste real de inicialização WPF antes da publicação.
+- Adicionado diagnóstico de falhas de startup em `%LOCALAPPDATA%\RenomearTudo\logs\startup.log`.
+- Adicionado instalador Inno Setup moderno.
+- Setup final contém o runtime offline oficial do .NET Framework 4.8.
+- O runtime baixado no CI tem assinatura Authenticode da Microsoft validada antes de ser incorporado.
+- Instalador suporta Windows 7 SP1, Windows 10 e Windows 11 dentro das limitações do .NET Framework 4.8.
+
 ## 2.0.0 - modernização inicial
 
 - Estrutura modernizada limpa, sem artefatos/fontes legados no pacote.

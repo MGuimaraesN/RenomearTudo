@@ -7,6 +7,7 @@
     <AssemblyName>RenomearTudo</AssemblyName>
     <RootNamespace>RenomearTudo.App</RootNamespace>
     <ApplicationManifest>app.manifest</ApplicationManifest>
+    <StartupObject>RenomearTudo.App.Program</StartupObject>
     <ApplicationIcon Condition="Exists('Assets\RenomearTudo.ico')">Assets\RenomearTudo.ico</ApplicationIcon>
   </PropertyGroup>
   <ItemGroup>

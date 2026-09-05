@@ -95,8 +95,11 @@ RenomearTudo/
 │  └─ RenomearTudo.App/         # WPF / UI
 ├─ tests/
 │  └─ RenomearTudo.SmokeTests/  # testes sem framework externo
+├─ installer/
+│  ├─ RenomearTudo.iss           # instalador Inno Setup
+│  └─ prerequisites/             # preenchido somente durante o build
 ├─ .github/workflows/
-│  └─ build-release.yml
+│  └─ build-release.yml          # build/release somente manual
 ├─ RenomearTudo.sln
 ├─ NOTICE.md
 └─ README.md
@@ -120,22 +123,46 @@ src\RenomearTudo.App\bin\Release\net48\RenomearTudo.exe
 
 ## GitHub Actions e Releases
 
-`.github/workflows/build-release.yml`:
+O workflow **não executa automaticamente** em `push` ou `pull_request`. Ele só roda quando você escolher **Run workflow** na aba Actions.
 
-- compila em `windows-2025` (runner fixado para evitar mudanças inesperadas do alias `windows-latest`);
-- executa smoke tests;
-- cria `RenomearTudo-Windows.zip`;
-- gera `SHA256SUMS.txt`;
-- tenta executar Microsoft Defender no conteúdo gerado;
-- envia o pacote como Artifact em pushes/PRs;
-- em tags `v*`, publica automaticamente os arquivos em **GitHub Releases**.
+Fluxo manual:
 
-Para publicar uma versão:
+1. Abra **Actions → Build Release (Manual)**.
+2. Clique em **Run workflow**.
+3. Informe a versão, por exemplo `2.0.1`.
+4. O workflow compila, executa os testes do motor, faz um teste real de inicialização da janela, gera o instalador offline, verifica com Microsoft Defender, calcula SHA-256 e publica a Release.
 
-```bash
-git tag v2.0.0
-git push origin v2.0.0
+A Release não depende mais de uma tag criada previamente. O próprio workflow cria a Release/tag `vX.Y.Z` para o commit que foi compilado.
+
+Arquivos publicados:
+
+```text
+RenomearTudo-Setup-2.0.1.exe       # recomendado; instalador offline
+RenomearTudo-Portable-2.0.1.zip    # versão portátil; requer .NET 4.8 já instalado
+SHA256SUMS.txt
 ```
+
+### Instalador e pré-requisitos
+
+O Setup é criado com Inno Setup e contém o **Microsoft .NET Framework 4.8 Runtime Offline** oficial da Microsoft. O workflow baixa esse runtime diretamente de `download.microsoft.com`, valida a assinatura Authenticode da Microsoft e somente então o incorpora ao instalador.
+
+Na instalação:
+
+- se .NET Framework 4.8 ou superior já existir, nada extra é instalado;
+- se estiver ausente, o runtime incluído no Setup é instalado sem precisar de internet;
+- se o runtime exigir reinicialização, o Setup interrompe de forma segura e pede para executar novamente após reiniciar.
+
+O aplicativo não usa Visual C++ Runtime nem outras bibliotecas nativas externas.
+
+### Diagnóstico de inicialização
+
+A inicialização possui tratamento de exceções e grava um log em:
+
+```text
+%LOCALAPPDATA%\RenomearTudo\logs\startup.log
+```
+
+Além disso, a Release só é gerada se `RenomearTudo.exe --startup-check` conseguir inicializar o WPF, os recursos XAML, o ViewModel e a janela principal no runner Windows.
 
 ## Windows 7
 

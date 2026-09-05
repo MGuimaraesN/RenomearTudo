@@ -15,3 +15,6 @@ TestResults/
 # Local application data
 *.tmp
 *.log
+
+# Instalador de pré-requisito baixado somente no build manual
+installer/prerequisites/*.exe
