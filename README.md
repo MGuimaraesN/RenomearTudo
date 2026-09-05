@@ -19,11 +19,15 @@ Por isso, a implementação moderna fica isolada em `src/` e não depende de bin
 - Operações de arquivo com validação e renomeação em duas fases para evitar colisões.
 
 
-## Design Fluent 2.1
+## Design Fluent responsivo 2.2
 
-A versão 2.1 refaz completamente a camada visual sem alterar o motor de renomeação. O layout segue os princípios do Windows UI/Fluent: navegação previsível, hierarquia tipográfica, espaçamento consistente, comandos claros, estados de hover/foco/seleção e superfícies discretas.
+A versão 2.2 mantém a linguagem visual Fluent e torna a camada de interface realmente adaptável, sem alterar o motor de renomeação. O layout segue os princípios do Windows UI/Fluent: navegação previsível, hierarquia tipográfica, espaçamento consistente, comandos claros, estados de hover/foco/seleção e superfícies discretas.
 
 O projeto **não usa WinUI 3 em runtime** porque a compatibilidade solicitada inclui Windows 7. Em vez disso, o visual Fluent foi implementado diretamente em WPF/.NET Framework 4.8, mantendo a mesma base compatível com Windows 7 SP1, Windows 10 e Windows 11.
+
+A interface trabalha com breakpoints internos: em desktop exibe navegação completa e Regras + Prévia lado a lado; em largura intermediária compacta a navegação; em janelas estreitas oferece alternância **Arquivos/Regras**, evitando controles esmagados. A janela também se ajusta à área útil do monitor e reduz elementos secundários quando a altura disponível é pequena.
+
+Para listas grandes, a tabela usa virtualização/recycling, a busca tem debounce e a inclusão de arquivos/pastas é preparada fora da thread gráfica e aplicada em lote.
 
 O tema Sistema/Claro/Escuro agora estiliza também controles que antes herdavam templates claros do Windows, incluindo ComboBox e seu popup, TextBox, CheckBox, ListBox, DataGrid, botões e barras de rolagem. A preferência de tema é salva localmente em `%LOCALAPPDATA%\RenomearTudo\theme.txt`.
 
@@ -138,7 +142,7 @@ Fluxo manual:
 
 1. Abra **Actions → Build Release (Manual)**.
 2. Clique em **Run workflow**.
-3. Informe a versão, por exemplo `2.1.1`.
+3. Informe a versão, por exemplo `2.2.0`.
 4. O workflow compila, executa os testes do motor, faz um teste real de inicialização da janela, gera o instalador offline, instala e testa esse Setup em uma pasta temporária, verifica com Microsoft Defender, calcula SHA-256 e publica a Release.
 
 A Release não depende mais de uma tag criada previamente. O próprio workflow cria a Release/tag `vX.Y.Z` para o commit que foi compilado.
@@ -146,8 +150,8 @@ A Release não depende mais de uma tag criada previamente. O próprio workflow c
 Arquivos publicados:
 
 ```text
-RenomearTudo-Setup-2.1.1.exe       # recomendado; instalador offline
-RenomearTudo-Portable-2.1.1.zip    # versão portátil; requer .NET 4.8 já instalado
+RenomearTudo-Setup-2.2.0.exe       # recomendado; instalador offline
+RenomearTudo-Portable-2.2.0.zip    # versão portátil; requer .NET 4.8 já instalado
 SHA256SUMS.txt
 ```
 

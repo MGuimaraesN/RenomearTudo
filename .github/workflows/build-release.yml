@@ -6,7 +6,7 @@ on:
       version:
         description: 'Versão da Release (ex.: 2.0.0)'
         required: true
-        default: '2.1.1'
+        default: '2.2.0'
         type: string
 
 concurrency:
@@ -161,6 +161,10 @@ jobs:
 
           if (-not (Select-String -Path $log -SimpleMatch 'Binding diagnostics: OK.' -Quiet)) {
             throw 'O diagnóstico de bindings WPF não foi confirmado pelo startup-check.'
+          }
+
+          if (-not (Select-String -Path $log -SimpleMatch 'Responsive layout check: OK.' -Quiet)) {
+            throw 'Os breakpoints responsivos não foram confirmados pelo startup-check.'
           }
 
           if (-not (Select-String -Path $log -SimpleMatch 'Theme switch check: OK.' -Quiet)) {
@@ -365,6 +369,10 @@ jobs:
             Get-Content $startupLog
             throw 'A aplicação instalada não confirmou Binding diagnostics: OK.'
           }
+          if (-not (Select-String -Path $startupLog -SimpleMatch 'Responsive layout check: OK.' -Quiet)) {
+            Get-Content $startupLog
+            throw 'A aplicação instalada não confirmou Responsive layout check: OK.'
+          }
           if (-not (Select-String -Path $startupLog -SimpleMatch 'Theme switch check: OK.' -Quiet)) {
             Get-Content $startupLog
             throw 'A aplicação instalada não confirmou Theme switch check: OK.'
@@ -374,7 +382,7 @@ jobs:
             throw 'A aplicação instalada não confirmou Startup check: OK.'
           }
 
-          Write-Host 'Installer integration + theme test: OK'
+          Write-Host 'Installer integration + responsive/theme test: OK'
           Get-Content $startupLog
 
           $uninstaller = Join-Path $installDir 'unins000.exe'

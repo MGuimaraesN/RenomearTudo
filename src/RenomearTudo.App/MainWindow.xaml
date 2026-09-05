@@ -4,8 +4,8 @@
         xmlns:infra="clr-namespace:RenomearTudo.App.Infrastructure"
         xmlns:shell="clr-namespace:System.Windows.Shell;assembly=PresentationFramework"
         Title="Renomear Tudo"
-        Width="1460" Height="900"
-        MinWidth="1120" MinHeight="720"
+        Width="1280" Height="800"
+        MinWidth="800" MinHeight="560"
         WindowStartupLocation="CenterScreen"
         WindowStyle="None"
         ResizeMode="CanResize"
@@ -14,7 +14,9 @@
         AllowDrop="True"
         Drop="Window_Drop"
         DragOver="Window_DragOver"
-        StateChanged="Window_StateChanged">
+        StateChanged="Window_StateChanged"
+        Loaded="Window_Loaded"
+        SizeChanged="Window_SizeChanged">
 
     <shell:WindowChrome.WindowChrome>
         <shell:WindowChrome CaptionHeight="46"
@@ -66,7 +68,7 @@
                     <TextBlock Text="Renomear Tudo" FontFamily="Segoe UI Semibold" FontSize="13" VerticalAlignment="Center" Margin="9,0,0,0" />
                 </StackPanel>
 
-                <TextBlock Grid.Column="1"
+                <TextBlock x:Name="TitleBarSubtitle" Grid.Column="1"
                            Text="Renomeação em massa segura"
                            Style="{StaticResource CaptionText}"
                            HorizontalAlignment="Center"
@@ -82,12 +84,12 @@
 
         <Grid Grid.Row="1">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="220" />
+                <ColumnDefinition x:Name="NavigationColumn" Width="220" />
                 <ColumnDefinition Width="*" />
             </Grid.ColumnDefinitions>
 
             <!-- NavigationView-like -->
-            <Border Grid.Column="0"
+            <Border x:Name="NavigationPane" Grid.Column="0"
                     Background="{DynamicResource NavigationBackgroundBrush}"
                     BorderBrush="{DynamicResource BorderBrush}"
                     BorderThickness="0,0,1,0">
@@ -100,28 +102,28 @@
                         <RowDefinition Height="Auto" />
                     </Grid.RowDefinitions>
 
-                    <StackPanel Margin="18,4,16,0">
+                    <StackPanel x:Name="NavigationIntro" Margin="18,4,16,0">
                         <TextBlock Text="Workspace" Style="{StaticResource MiniLabel}" />
                         <TextBlock Text="Organize nomes sem perder o controle." Style="{StaticResource CaptionText}" TextWrapping="Wrap" Margin="0,5,0,0" />
                     </StackPanel>
 
                     <StackPanel Grid.Row="2">
-                        <RadioButton x:Name="RenameNav" Style="{StaticResource NavigationItem}" GroupName="MainNavigation" IsChecked="True" Click="RenameNav_Click">
+                        <RadioButton x:Name="RenameNav" Style="{StaticResource NavigationItem}" GroupName="MainNavigation" IsChecked="True" Click="RenameNav_Click" ToolTip="Renomear">
                             <StackPanel Orientation="Horizontal">
                                 <TextBlock Text="↔" FontFamily="Segoe UI Symbol" FontSize="16" Width="28" VerticalAlignment="Center" />
-                                <TextBlock Text="Renomear" VerticalAlignment="Center" />
+                                <TextBlock x:Name="RenameNavLabel" Text="Renomear" VerticalAlignment="Center" />
                             </StackPanel>
                         </RadioButton>
-                        <RadioButton x:Name="HistoryNav" Style="{StaticResource NavigationItem}" GroupName="MainNavigation" Click="HistoryNav_Click">
+                        <RadioButton x:Name="HistoryNav" Style="{StaticResource NavigationItem}" GroupName="MainNavigation" Click="HistoryNav_Click" ToolTip="Histórico">
                             <StackPanel Orientation="Horizontal">
                                 <TextBlock Text="↶" FontFamily="Segoe UI Symbol" FontSize="16" Width="28" VerticalAlignment="Center" />
-                                <TextBlock Text="Histórico" VerticalAlignment="Center" />
+                                <TextBlock x:Name="HistoryNavLabel" Text="Histórico" VerticalAlignment="Center" />
                             </StackPanel>
                         </RadioButton>
                     </StackPanel>
 
-                    <StackPanel Grid.Row="4" Margin="16,0,16,2">
-                        <Border Style="{StaticResource SubtleCard}" Margin="0,0,0,12">
+                    <StackPanel x:Name="NavigationFooter" Grid.Row="4" Margin="16,0,16,2">
+                        <Border x:Name="AppearanceCard" Style="{StaticResource SubtleCard}" Margin="0,0,0,12">
                             <StackPanel>
                                 <TextBlock Text="Aparência" Style="{StaticResource MiniLabel}" />
                                 <ComboBox x:Name="ThemeCombo" Margin="0,8,0,0" SelectionChanged="ThemeCombo_SelectionChanged">
@@ -131,8 +133,11 @@
                                 </ComboBox>
                             </StackPanel>
                         </Border>
-                        <TextBlock Text="Renomear Tudo 2.1.1" Style="{StaticResource CaptionText}" />
-                        <TextBlock Text="Fluent UI · Windows 7/10/11" Style="{StaticResource CaptionText}" Margin="0,2,0,0" />
+                        <Button x:Name="CompactThemeButton" Visibility="Collapsed" Style="{StaticResource SubtleButton}" Content="◐" ToolTip="Alternar aparência" Click="CycleTheme_Click" Width="40" Height="40" Padding="0" HorizontalAlignment="Center" Margin="0,0,0,10" />
+                        <StackPanel x:Name="VersionInfo">
+                            <TextBlock Text="Renomear Tudo 2.2.0" Style="{StaticResource CaptionText}" />
+                            <TextBlock Text="Fluent UI · Windows 7/10/11" Style="{StaticResource CaptionText}" Margin="0,2,0,0" />
+                        </StackPanel>
                     </StackPanel>
                 </Grid>
             </Border>
@@ -142,7 +147,7 @@
                 <!-- RENOMEAR -->
                 <!-- =========================================================== -->
                 <TabItem>
-                    <Grid Margin="26,22,26,20">
+                    <Grid x:Name="RenamePageRoot" Margin="26,22,26,20">
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto" />
                             <RowDefinition Height="16" />
@@ -154,39 +159,30 @@
                         </Grid.RowDefinitions>
 
                         <!-- Cabeçalho + CommandBar -->
-                        <Grid Grid.Row="0">
+                        <Grid x:Name="RenameHeaderGrid" Grid.Row="0">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*" />
                                 <ColumnDefinition Width="Auto" />
                             </Grid.ColumnDefinitions>
                             <StackPanel>
-                                <TextBlock Text="Renomear arquivos" Style="{StaticResource PageTitle}" />
-                                <TextBlock Text="Monte as regras, confira a prévia e aplique somente quando tudo estiver certo." Style="{StaticResource SecondaryText}" Margin="0,5,0,0" />
+                                <TextBlock x:Name="RenamePageTitle" Text="Renomear arquivos" Style="{StaticResource PageTitle}" />
+                                <TextBlock x:Name="RenamePageDescription" Text="Monte as regras, confira a prévia e aplique somente quando tudo estiver certo." Style="{StaticResource SecondaryText}" TextWrapping="Wrap" Margin="0,5,18,0" />
                             </StackPanel>
-                            <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
-                                <Button Command="{Binding AddFilesCommand}" Margin="0,0,8,0">
-                                    <StackPanel Orientation="Horizontal"><TextBlock Text="+" FontSize="17" Margin="0,-2,7,0"/><TextBlock Text="Arquivos" VerticalAlignment="Center"/></StackPanel>
+                            <StackPanel x:Name="RenameCommandBar" Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                                <Button x:Name="CompactRulesToggleButton" Visibility="Collapsed" Style="{StaticResource SubtleButton}" Content="Regras" Click="CompactRulesToggle_Click" Margin="0,0,6,0" />
+                                <Button Command="{Binding AddFilesCommand}" Margin="0,0,6,0" ToolTip="Adicionar arquivos">
+                                    <StackPanel Orientation="Horizontal"><TextBlock Text="+" FontSize="17" Margin="0,-2,7,0"/><TextBlock x:Name="AddFilesLabel" Text="Arquivos" VerticalAlignment="Center"/></StackPanel>
                                 </Button>
-                                <Button Command="{Binding AddFolderCommand}" Margin="0,0,8,0">
-                                    <StackPanel Orientation="Horizontal"><TextBlock Text="+" FontSize="17" Margin="0,-2,7,0"/><TextBlock Text="Pasta" VerticalAlignment="Center"/></StackPanel>
+                                <Button Command="{Binding AddFolderCommand}" Margin="0,0,6,0" ToolTip="Adicionar pasta">
+                                    <StackPanel Orientation="Horizontal"><TextBlock Text="+" FontSize="17" Margin="0,-2,7,0"/><TextBlock x:Name="AddFolderLabel" Text="Pasta" VerticalAlignment="Center"/></StackPanel>
                                 </Button>
-                                <Button Style="{StaticResource SubtleButton}" Command="{Binding ExportReportCommand}" Content="Exportar relatório" />
+                                <Button x:Name="ExportReportButton" Style="{StaticResource SubtleButton}" Command="{Binding ExportReportCommand}" Content="Exportar relatório" ToolTip="Exportar relatório CSV" />
                             </StackPanel>
                         </Grid>
 
                         <!-- Estatísticas -->
-                        <Grid Grid.Row="2">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition />
-                                <ColumnDefinition Width="10" />
-                                <ColumnDefinition />
-                                <ColumnDefinition Width="10" />
-                                <ColumnDefinition />
-                                <ColumnDefinition Width="10" />
-                                <ColumnDefinition />
-                            </Grid.ColumnDefinitions>
-
-                            <Border Grid.Column="0" Style="{StaticResource StatCard}">
+                        <UniformGrid x:Name="StatsGrid" Grid.Row="2" Rows="1" Columns="4" Margin="-5">
+                            <Border Style="{StaticResource StatCard}" Margin="5">
                                 <Grid>
                                     <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                                     <StackPanel>
@@ -199,7 +195,7 @@
                                 </Grid>
                             </Border>
 
-                            <Border Grid.Column="2" Style="{StaticResource StatCard}">
+                            <Border Style="{StaticResource StatCard}" Margin="5">
                                 <Grid>
                                     <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                                     <StackPanel>
@@ -212,7 +208,7 @@
                                 </Grid>
                             </Border>
 
-                            <Border Grid.Column="4" Style="{StaticResource StatCard}">
+                            <Border Style="{StaticResource StatCard}" Margin="5">
                                 <Grid>
                                     <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                                     <StackPanel>
@@ -225,7 +221,7 @@
                                 </Grid>
                             </Border>
 
-                            <Border Grid.Column="6" Style="{StaticResource StatCard}">
+                            <Border Style="{StaticResource StatCard}" Margin="5">
                                 <Grid>
                                     <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                                     <StackPanel>
@@ -237,23 +233,28 @@
                                     </Border>
                                 </Grid>
                             </Border>
-                        </Grid>
+                        </UniformGrid>
 
                         <!-- Workspace principal -->
-                        <Grid Grid.Row="4">
+                        <Grid x:Name="MainWorkspace" Grid.Row="4">
+                            <Grid.RowDefinitions>
+                                <RowDefinition x:Name="WorkspaceTopRow" Height="*" />
+                                <RowDefinition x:Name="WorkspaceGapRow" Height="0" />
+                                <RowDefinition x:Name="WorkspaceBottomRow" Height="0" />
+                            </Grid.RowDefinitions>
                             <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="355" />
-                                <ColumnDefinition Width="14" />
-                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition x:Name="RulesColumn" Width="355" />
+                                <ColumnDefinition x:Name="WorkspaceSplitterColumn" Width="14" />
+                                <ColumnDefinition x:Name="PreviewColumn" Width="*" />
                             </Grid.ColumnDefinitions>
 
                             <!-- Painel de regras -->
-                            <Border Grid.Column="0" Style="{StaticResource FluentCard}" Padding="0">
+                            <Border x:Name="RulesPanel" Grid.Row="0" Grid.Column="0" Style="{StaticResource FluentCard}" Padding="0" MinWidth="270">
                                 <Grid>
                                     <Grid.RowDefinitions>
                                         <RowDefinition Height="Auto" />
                                         <RowDefinition Height="Auto" />
-                                        <RowDefinition Height="185" />
+                                        <RowDefinition x:Name="RulesListRow" Height="185" />
                                         <RowDefinition Height="Auto" />
                                         <RowDefinition Height="1" />
                                         <RowDefinition Height="*" />
@@ -367,7 +368,7 @@
 
                                     <Border Grid.Row="6" Background="{DynamicResource BorderBrush}" />
 
-                                    <Grid Grid.Row="7" Margin="16,10,16,14">
+                                    <Grid x:Name="PresetsPanel" Grid.Row="7" Margin="16,10,16,14">
                                         <Grid.RowDefinitions>
                                             <RowDefinition Height="Auto" />
                                             <RowDefinition Height="8" />
@@ -390,8 +391,18 @@
                                 </Grid>
                             </Border>
 
+                            <GridSplitter x:Name="WorkspaceSplitter"
+                                          Grid.Row="0" Grid.Column="1"
+                                          Width="14"
+                                          HorizontalAlignment="Stretch"
+                                          VerticalAlignment="Stretch"
+                                          Background="Transparent"
+                                          ResizeDirection="Columns"
+                                          ResizeBehavior="PreviousAndNext"
+                                          ShowsPreview="True" DragIncrement="4" KeyboardIncrement="8" />
+
                             <!-- Lista / prévia -->
-                            <Border Grid.Column="2" Style="{StaticResource FluentCard}" Padding="0">
+                            <Border x:Name="PreviewPanel" Grid.Row="0" Grid.Column="2" Style="{StaticResource FluentCard}" Padding="0" MinWidth="360">
                                 <Grid>
                                     <Grid.RowDefinitions>
                                         <RowDefinition Height="Auto" />
@@ -401,12 +412,12 @@
                                         <RowDefinition Height="Auto" />
                                     </Grid.RowDefinitions>
 
-                                    <Grid Margin="16,14,16,12">
+                                    <Grid x:Name="PreviewToolbar" Margin="16,14,16,12">
                                         <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="*" />
-                                            <ColumnDefinition Width="135" />
-                                            <ColumnDefinition Width="145" />
-                                            <ColumnDefinition Width="Auto" />
+                                            <ColumnDefinition x:Name="SearchColumn" Width="*" />
+                                            <ColumnDefinition x:Name="FilterColumn" Width="135" />
+                                            <ColumnDefinition x:Name="SortColumn" Width="145" />
+                                            <ColumnDefinition x:Name="ClearColumn" Width="Auto" />
                                         </Grid.ColumnDefinitions>
                                         <Grid>
                                             <TextBox Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}" Margin="0" ToolTip="Buscar por nome original ou novo" />
@@ -429,17 +440,24 @@
                                     <Border Grid.Row="1" Background="{DynamicResource BorderBrush}" />
 
                                     <Grid Grid.Row="2">
-                                        <DataGrid ItemsSource="{Binding FilesView}"
+                                        <DataGrid x:Name="FilesGrid"
+                                                  ItemsSource="{Binding FilesView}"
                                                   SelectedItem="{Binding SelectedFile}"
                                                   AutoGenerateColumns="False"
                                                   IsReadOnly="False"
                                                   SelectionMode="Single"
-                                                  AlternationCount="2">
+                                                  AlternationCount="2"
+                                                  EnableRowVirtualization="True"
+                                                  EnableColumnVirtualization="True"
+                                                  VirtualizingPanel.IsVirtualizing="True"
+                                                  VirtualizingPanel.VirtualizationMode="Recycling"
+                                                  ScrollViewer.CanContentScroll="True"
+                                                  ScrollViewer.IsDeferredScrollingEnabled="True">
                                             <DataGrid.Columns>
-                                                <DataGridCheckBoxColumn Header="" Binding="{Binding Included, UpdateSourceTrigger=PropertyChanged}" Width="46" />
-                                                <DataGridTextColumn Header="NOME ORIGINAL" Binding="{Binding OriginalName, Mode=OneWay}" IsReadOnly="True" Width="*" />
-                                                <DataGridTextColumn Header="PRÉVIA DO NOVO NOME" Binding="{Binding PreviewName, UpdateSourceTrigger=LostFocus}" IsReadOnly="False" Width="*" />
-                                                <DataGridTemplateColumn Header="STATUS" Width="150">
+                                                <DataGridCheckBoxColumn x:Name="IncludeColumn" Header="" Binding="{Binding Included, UpdateSourceTrigger=PropertyChanged}" Width="46" />
+                                                <DataGridTextColumn x:Name="OriginalNameColumn" Header="NOME ORIGINAL" Binding="{Binding OriginalName, Mode=OneWay}" IsReadOnly="True" Width="*" />
+                                                <DataGridTextColumn x:Name="PreviewNameColumn" Header="PRÉVIA DO NOVO NOME" Binding="{Binding PreviewName, UpdateSourceTrigger=LostFocus}" IsReadOnly="False" Width="*" />
+                                                <DataGridTemplateColumn x:Name="StatusColumn" Header="STATUS" Width="150">
                                                     <DataGridTemplateColumn.CellTemplate>
                                                         <DataTemplate>
                                                             <Border Background="{DynamicResource SurfaceAltBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="10" Padding="8,3" HorizontalAlignment="Left">
@@ -465,14 +483,10 @@
 
                                     <Border Grid.Row="3" Background="{DynamicResource BorderBrush}" />
 
-                                    <!-- Detalhes compactos do item selecionado -->
-                                    <Grid Grid.Row="4" Margin="16,12,16,14">
+                                    <!-- Detalhes adaptáveis do item selecionado -->
+                                    <Grid x:Name="SelectedDetailsPanel" Grid.Row="4" Margin="16,11,16,13">
                                         <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="2*" />
-                                            <ColumnDefinition Width="1" />
-                                            <ColumnDefinition Width="170" />
-                                            <ColumnDefinition Width="1" />
-                                            <ColumnDefinition Width="190" />
+                                            <ColumnDefinition Width="*" />
                                             <ColumnDefinition Width="Auto" />
                                         </Grid.ColumnDefinitions>
 
@@ -480,26 +494,15 @@
                                             <TextBlock Text="ARQUIVO SELECIONADO" Style="{StaticResource MiniLabel}" />
                                             <TextBlock Text="{Binding SelectedFile.OriginalName, Mode=OneWay}" TextTrimming="CharacterEllipsis" FontFamily="Segoe UI Semibold" Margin="0,4,0,0" />
                                             <TextBlock Text="{Binding SelectedFile.OriginalPath, Mode=OneWay}" Style="{StaticResource CaptionText}" TextTrimming="CharacterEllipsis" Margin="0,3,0,0" ToolTip="{Binding SelectedFile.OriginalPath, Mode=OneWay}" />
+                                            <WrapPanel x:Name="SelectedMetadataWrap" Margin="0,7,0,0">
+                                                <TextBlock Style="{StaticResource CaptionText}" Margin="0,0,18,0"><Run Text="Tamanho: "/><Run Text="{Binding SelectedFile.Size, Mode=OneWay}"/></TextBlock>
+                                                <TextBlock Style="{StaticResource CaptionText}" Margin="0,0,18,0"><Run Text="Modificado: "/><Run Text="{Binding SelectedFile.Modified, Mode=OneWay}"/></TextBlock>
+                                                <TextBlock Style="{StaticResource CaptionText}" TextTrimming="CharacterEllipsis"><Run Text="{Binding SelectedFile.Metadata.Artist, Mode=OneWay}"/><Run Text="  ·  "/><Run Text="{Binding SelectedFile.Metadata.Title, Mode=OneWay}"/></TextBlock>
+                                            </WrapPanel>
                                         </StackPanel>
 
-                                        <Border Grid.Column="1" Background="{DynamicResource BorderBrush}" Margin="0,0,14,0" />
-
-                                        <StackPanel Grid.Column="2" Margin="0,0,14,0">
-                                            <TextBlock Text="DETALHES" Style="{StaticResource MiniLabel}" />
-                                            <TextBlock Margin="0,4,0,0"><Run Text="Tamanho: "/><Run Text="{Binding SelectedFile.Size, Mode=OneWay}"/></TextBlock>
-                                            <TextBlock Style="{StaticResource CaptionText}" Margin="0,3,0,0"><Run Text="Modificado: "/><Run Text="{Binding SelectedFile.Modified, Mode=OneWay}"/></TextBlock>
-                                        </StackPanel>
-
-                                        <Border Grid.Column="3" Background="{DynamicResource BorderBrush}" Margin="0,0,14,0" />
-
-                                        <StackPanel Grid.Column="4" Margin="0,0,14,0">
-                                            <TextBlock Text="MP3 / ID3" Style="{StaticResource MiniLabel}" />
-                                            <TextBlock Text="{Binding SelectedFile.Metadata.Title, Mode=OneWay}" TextTrimming="CharacterEllipsis" Margin="0,4,0,0" />
-                                            <TextBlock Style="{StaticResource CaptionText}" TextTrimming="CharacterEllipsis" Margin="0,3,0,0"><Run Text="{Binding SelectedFile.Metadata.Artist, Mode=OneWay}"/><Run Text="  ·  "/><Run Text="{Binding SelectedFile.Metadata.Album, Mode=OneWay}"/></TextBlock>
-                                        </StackPanel>
-
-                                        <StackPanel Grid.Column="5" Orientation="Horizontal" VerticalAlignment="Center">
-                                            <Button Style="{StaticResource SubtleButton}" Content="Restaurar prévia" Command="{Binding ResetManualNameCommand}" Margin="0,0,6,0" />
+                                        <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                                            <Button x:Name="ResetPreviewButton" Style="{StaticResource SubtleButton}" Content="Restaurar prévia" Command="{Binding ResetManualNameCommand}" Margin="0,0,6,0" />
                                             <Button Style="{StaticResource DangerButton}" Content="Remover" Command="{Binding RemoveSelectedCommand}" />
                                         </StackPanel>
                                     </Grid>
@@ -509,7 +512,7 @@
 
                         <!-- Action bar -->
                         <Border Grid.Row="6" Style="{StaticResource FluentCard}" Padding="14,12">
-                            <Grid>
+                            <Grid x:Name="ActionBarGrid">
                                 <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
 
                                 <StackPanel VerticalAlignment="Center">
@@ -523,7 +526,7 @@
 
                                 <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
                                     <Button Style="{StaticResource SubtleButton}" Content="Cancelar" Command="{Binding CancelCommand}" Visibility="{Binding IsBusy, Mode=OneWay, Converter={StaticResource BooleanToVisibilityConverter}}" Margin="0,0,8,0" />
-                                    <Button Style="{StaticResource PrimaryButton}" Command="{Binding RenameCommand}" MinWidth="210" MinHeight="40" FontSize="13">
+                                    <Button x:Name="RenameActionButton" Style="{StaticResource PrimaryButton}" Command="{Binding RenameCommand}" MinWidth="210" MinHeight="40" FontSize="13">
                                         <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
                                             <TextBlock Text="Renomear" Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" FontFamily="Segoe UI Semibold" />
                                             <Border Background="#24FFFFFF" CornerRadius="9" Padding="7,1" Margin="9,0,0,0">
@@ -541,7 +544,7 @@
                 <!-- HISTÓRICO -->
                 <!-- =========================================================== -->
                 <TabItem>
-                    <Grid Margin="26,22,26,20">
+                    <Grid x:Name="HistoryPageRoot" Margin="26,22,26,20">
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto" />
                             <RowDefinition Height="18" />

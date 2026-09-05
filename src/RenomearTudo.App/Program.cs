@@ -102,6 +102,23 @@ namespace RenomearTudo.App
                         tabs.SelectedIndex = 0;
                         PumpWindow(window);
 
+                        // Exercita os principais breakpoints responsivos. Isso detecta controles
+                        // espremidos, nomes ausentes e regressões ao alternar entre Arquivos/Regras.
+                        ExerciseResponsiveLayout(window, 1360, 820);
+                        ExerciseResponsiveLayout(window, 1040, 700);
+                        ExerciseResponsiveLayout(window, 840, 600);
+
+                        var rulesToggle = window.FindName("CompactRulesToggleButton") as Button;
+                        if (rulesToggle == null)
+                            throw new InvalidOperationException("CompactRulesToggleButton não foi localizado no teste responsivo.");
+                        rulesToggle.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                        PumpWindow(window);
+                        rulesToggle.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                        PumpWindow(window);
+
+                        // Volta para uma largura confortável antes de testar popups e temas.
+                        ExerciseResponsiveLayout(window, 1360, 820);
+
                         // Abre os popups dos ComboBoxes principais para materializar seus templates.
                         ExerciseComboBox(window, "ThemeCombo");
                         ExerciseComboBox(window, "RuleTypeCombo");
@@ -129,6 +146,7 @@ namespace RenomearTudo.App
                         window.Close();
 
                         WriteLog("Binding diagnostics: OK.");
+                        WriteLog("Responsive layout check: OK.");
                         WriteLog("Theme switch check: OK.");
                         WriteLog("Startup check: OK.");
                         return 0;
@@ -195,6 +213,17 @@ namespace RenomearTudo.App
             window.UpdateLayout();
             window.Dispatcher.Invoke(() => { }, DispatcherPriority.ApplicationIdle);
             window.UpdateLayout();
+        }
+
+        private static void ExerciseResponsiveLayout(Window window, double width, double height)
+        {
+            window.WindowState = WindowState.Normal;
+            window.Width = Math.Max(window.MinWidth, width);
+            window.Height = Math.Max(window.MinHeight, height);
+            PumpWindow(window);
+
+            if (window.ActualWidth <= 0 || window.ActualHeight <= 0)
+                throw new InvalidOperationException("A janela não foi medida corretamente durante o teste responsivo.");
         }
 
         private static void ExerciseComboBox(Window window, string name)

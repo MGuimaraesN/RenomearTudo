@@ -1,5 +1,22 @@
 # Changelog
 
+## 2.2.0 - responsividade, adaptação e desempenho da interface
+
+- Janela passa a se adaptar à área útil do monitor e reduz a largura mínima de 1120 para 800 px.
+- NavigationView alterna automaticamente entre modo completo e compacto.
+- Em largura estreita, Arquivos e Regras deixam de ser espremidos lado a lado e passam a alternar em modo focado.
+- Cards de resumo mudam automaticamente de 4 colunas para 2x2.
+- Painel de detalhes e presets são reduzidos/ocultados quando a altura disponível é pequena.
+- DataGrid prioriza nome original e prévia em telas estreitas e oculta Status apenas quando necessário.
+- Painel de regras ganha GridSplitter nas larguras de desktop.
+- DataGrid e listas usam virtualização com recycling e deferred scrolling.
+- Busca passa a usar debounce adaptativo para listas grandes.
+- Adição de arquivos/pastas pelo usuário faz leitura de metadados fora da thread da interface e insere a coleção em lote.
+- Ordenação deixa de emitir milhares de atualizações individuais e elimina recálculo duplicado da prévia.
+- Recarregamento após renomear/cancelar também faz leitura pesada em segundo plano.
+- Startup-check passa a testar breakpoints largo, compacto e estreito, além da alternância Arquivos/Regras.
+- Motor `RenomearTudo.Core` permanece byte a byte inalterado em relação à 2.1.1.
+
 
 ## 2.1.1 - correção definitiva de bindings e validação de UI
 

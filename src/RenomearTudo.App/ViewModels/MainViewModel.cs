@@ -35,6 +35,12 @@ namespace RenomearTudo.App.ViewModels
 
     public sealed class MainViewModel : ObservableObject
     {
+        private sealed class PathLoadResult
+        {
+            public List<FileRenameItem> Models { get; } = new List<FileRenameItem>();
+            public List<string> Errors { get; } = new List<string>();
+        }
+
         private readonly PersistenceService _persistence = new PersistenceService();
         private BindableRenameRule _selectedRule;
         private BindableFileItem _selectedFile;
@@ -48,17 +54,20 @@ namespace RenomearTudo.App.ViewModels
         private string _progressText = string.Empty;
         private CancellationTokenSource _cts;
         private readonly DispatcherTimer _previewTimer;
+        private readonly DispatcherTimer _searchTimer;
 
         public MainViewModel()
         {
-            Files = new ObservableCollection<BindableFileItem>();
+            Files = new BulkObservableCollection<BindableFileItem>();
             Rules = new ObservableCollection<BindableRenameRule>();
             History = new ObservableCollection<OperationHistory>(_persistence.LoadHistory().OrderByDescending(h => h.Timestamp));
             Presets = new ObservableCollection<PresetDefinition>(_persistence.LoadPresets());
             FilesView = CollectionViewSource.GetDefaultView(Files);
             FilesView.Filter = FilterFile;
-            _previewTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(140) };
+            _previewTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(180) };
             _previewTimer.Tick += (_, __) => { _previewTimer.Stop(); RefreshPreview(); };
+            _searchTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(160) };
+            _searchTimer.Tick += (_, __) => { _searchTimer.Stop(); FilesView.Refresh(); };
 
             AddFilesCommand = new RelayCommand(AddFiles, () => !IsBusy);
             AddFolderCommand = new RelayCommand(AddFolder, () => !IsBusy);
@@ -81,7 +90,7 @@ namespace RenomearTudo.App.ViewModels
             RefreshPreview();
         }
 
-        public ObservableCollection<BindableFileItem> Files { get; }
+        public BulkObservableCollection<BindableFileItem> Files { get; }
         public ObservableCollection<BindableRenameRule> Rules { get; }
         public ObservableCollection<OperationHistory> History { get; }
         public ObservableCollection<PresetDefinition> Presets { get; }
@@ -155,7 +164,13 @@ namespace RenomearTudo.App.ViewModels
         public string SearchText
         {
             get => _searchText;
-            set { if (SetProperty(ref _searchText, value)) FilesView.Refresh(); }
+            set
+            {
+                if (!SetProperty(ref _searchText, value)) return;
+                _searchTimer.Stop();
+                _searchTimer.Interval = TimeSpan.FromMilliseconds(Files.Count > 5000 ? 260 : 160);
+                _searchTimer.Start();
+            }
         }
 
         public string FilterMode
@@ -184,19 +199,24 @@ namespace RenomearTudo.App.ViewModels
         public void AddPaths(IEnumerable<string> paths)
         {
             var existing = new HashSet<string>(Files.Select(f => f.Model.OriginalPath), StringComparer.OrdinalIgnoreCase);
-            var added = false;
+            var pending = new List<BindableFileItem>();
+
             foreach (var input in paths ?? Enumerable.Empty<string>())
             {
                 if (File.Exists(input))
                 {
-                    added |= AddOne(input, existing);
+                    var item = CreateOne(input, existing);
+                    if (item != null) pending.Add(item);
                 }
                 else if (Directory.Exists(input))
                 {
                     try
                     {
                         foreach (var file in Directory.EnumerateFiles(input))
-                            added |= AddOne(file, existing);
+                        {
+                            var item = CreateOne(file, existing);
+                            if (item != null) pending.Add(item);
+                        }
                     }
                     catch (Exception ex)
                     {
@@ -204,7 +224,123 @@ namespace RenomearTudo.App.ViewModels
                     }
                 }
             }
-            if (added) { ApplySort(); RefreshPreview(); }
+
+            if (pending.Count == 0) return;
+            Files.AddRange(pending);
+            ApplySort();
+        }
+
+        public async Task AddPathsAsync(IEnumerable<string> paths)
+        {
+            if (IsBusy) return;
+
+            var inputs = (paths ?? Enumerable.Empty<string>()).Where(p => !string.IsNullOrWhiteSpace(p)).ToArray();
+            if (inputs.Length == 0) return;
+
+            var existing = new HashSet<string>(Files.Select(f => f.Model.OriginalPath), StringComparer.OrdinalIgnoreCase);
+            var needsMp3Metadata = RulesNeedMp3Metadata(Rules.Select(r => r.Model).ToList());
+            IsBusy = true;
+            _cts = new CancellationTokenSource();
+            ProgressValue = 0;
+            ProgressText = "Lendo arquivos...";
+
+            try
+            {
+                var token = _cts.Token;
+                var result = await Task.Run(() => LoadModels(inputs, existing, needsMp3Metadata, token), token);
+                token.ThrowIfCancellationRequested();
+
+                if (result.Models.Count > 0)
+                {
+                    var bindables = result.Models.Select(CreateBindable).ToList();
+                    Files.AddRange(bindables);
+                    ApplySort();
+                }
+
+                if (result.Errors.Count > 0)
+                {
+                    MessageBox.Show(
+                        "Alguns caminhos não puderam ser lidos:\n\n" + string.Join("\n", result.Errors.Take(6)),
+                        "Renomear Tudo",
+                        MessageBoxButton.OK,
+                        MessageBoxImage.Warning);
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                // Cancelar a importação não altera os arquivos já presentes na lista.
+            }
+            finally
+            {
+                _cts?.Dispose();
+                _cts = null;
+                ProgressValue = 0;
+                ProgressText = string.Empty;
+                IsBusy = false;
+            }
+        }
+
+        private static PathLoadResult LoadModels(IEnumerable<string> inputs, HashSet<string> existing, bool needsMp3Metadata, CancellationToken token)
+        {
+            var result = new PathLoadResult();
+
+            foreach (var input in inputs)
+            {
+                token.ThrowIfCancellationRequested();
+
+                if (File.Exists(input))
+                {
+                    TryLoadModel(input, existing, result, needsMp3Metadata);
+                    continue;
+                }
+
+                if (!Directory.Exists(input)) continue;
+
+                try
+                {
+                    foreach (var file in Directory.EnumerateFiles(input))
+                    {
+                        token.ThrowIfCancellationRequested();
+                        TryLoadModel(file, existing, result, needsMp3Metadata);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    result.Errors.Add(SafeDisplayName(input) + ": " + ex.Message);
+                }
+            }
+
+            return result;
+        }
+
+        private static void TryLoadModel(string path, HashSet<string> existing, PathLoadResult result, bool needsMp3Metadata)
+        {
+            try
+            {
+                var full = Path.GetFullPath(path);
+                if (!existing.Add(full)) return;
+                var model = new FileRenameItem(full);
+                if (needsMp3Metadata && string.Equals(Path.GetExtension(full), ".mp3", StringComparison.OrdinalIgnoreCase))
+                    model.Metadata = Id3v1Reader.Read(full);
+                result.Models.Add(model);
+            }
+            catch (Exception ex)
+            {
+                result.Errors.Add(SafeDisplayName(path) + ": " + ex.Message);
+            }
+        }
+
+        private static string SafeDisplayName(string path)
+        {
+            try
+            {
+                var name = Path.GetFileName(path);
+                return string.IsNullOrWhiteSpace(name) ? (path ?? "Caminho") : name;
+            }
+            catch
+            {
+                return string.IsNullOrWhiteSpace(path) ? "Caminho" : path;
+            }
         }
 
         public void MoveSelectedRuleTo(int newIndex)
@@ -218,29 +354,43 @@ namespace RenomearTudo.App.ViewModels
             RefreshPreview();
         }
 
-        private bool AddOne(string path, HashSet<string> existing)
+        private BindableFileItem CreateOne(string path, HashSet<string> existing)
         {
-            var full = Path.GetFullPath(path);
-            if (!existing.Add(full)) return false;
-            var model = new FileRenameItem(full);
+            string full;
+            try
+            {
+                full = Path.GetFullPath(path);
+            }
+            catch
+            {
+                return null;
+            }
+
+            if (!existing.Add(full)) return null;
+            return CreateBindable(new FileRenameItem(full));
+        }
+
+        private BindableFileItem CreateBindable(FileRenameItem model)
+        {
             var bindable = new BindableFileItem(model);
             bindable.IncludedChanged += (_, __) => SchedulePreview();
             bindable.PreviewEdited += (_, __) => ValidateOnly();
-            Files.Add(bindable);
-            return true;
+            return bindable;
         }
 
-        private void AddFiles()
+        private async void AddFiles()
         {
             var dialog = new OpenFileDialog { Multiselect = true, Title = "Adicionar arquivos" };
-            if (dialog.ShowDialog() == true) AddPaths(dialog.FileNames);
+            if (dialog.ShowDialog() == true)
+                await AddPathsAsync(dialog.FileNames);
         }
 
-        private void AddFolder()
+        private async void AddFolder()
         {
             using (var dialog = new WinForms.FolderBrowserDialog { Description = "Selecione uma pasta" })
             {
-                if (dialog.ShowDialog() == WinForms.DialogResult.OK) AddPaths(new[] { dialog.SelectedPath });
+                if (dialog.ShowDialog() == WinForms.DialogResult.OK)
+                    await AddPathsAsync(new[] { dialog.SelectedPath });
             }
         }
 
@@ -300,6 +450,7 @@ namespace RenomearTudo.App.ViewModels
         private void SchedulePreview()
         {
             _previewTimer.Stop();
+            _previewTimer.Interval = TimeSpan.FromMilliseconds(Files.Count > 5000 ? 320 : Files.Count > 1000 ? 230 : 180);
             _previewTimer.Start();
         }
 
@@ -402,12 +553,12 @@ namespace RenomearTudo.App.ViewModels
                 else
                     MessageBox.Show("A operação encontrou erros e executou rollback quando necessário:\n\n" + string.Join("\n", result.Errors.Take(8)), "Renomear Tudo", MessageBoxButton.OK, MessageBoxImage.Warning);
 
-                ReloadExistingFiles();
+                await ReloadExistingFilesAsync();
             }
             catch (OperationCanceledException)
             {
                 MessageBox.Show("Operação cancelada. O mecanismo tenta manter os arquivos em estado consistente.", "Renomear Tudo", MessageBoxButton.OK, MessageBoxImage.Information);
-                ReloadExistingFiles();
+                await ReloadExistingFilesAsync();
             }
             finally
             {
@@ -415,11 +566,21 @@ namespace RenomearTudo.App.ViewModels
             }
         }
 
-        private void ReloadExistingFiles()
+        private async Task ReloadExistingFilesAsync()
         {
-            var paths = Files.Select(f => File.Exists(f.Model.NewPath) ? f.Model.NewPath : f.Model.OriginalPath).Where(File.Exists).ToArray();
-            Files.Clear();
-            AddPaths(paths);
+            var paths = Files
+                .Select(f => File.Exists(f.Model.NewPath) ? f.Model.NewPath : f.Model.OriginalPath)
+                .Where(File.Exists)
+                .ToArray();
+
+            var existing = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var needsMp3Metadata = RulesNeedMp3Metadata(Rules.Select(r => r.Model).ToList());
+            var result = await Task.Run(() => LoadModels(paths, existing, needsMp3Metadata, CancellationToken.None));
+            var bindables = result.Models.Select(CreateBindable).ToList();
+
+            SelectedFile = null;
+            Files.ResetWith(bindables);
+            ApplySort();
         }
 
         private void UndoLast()
@@ -513,19 +674,22 @@ namespace RenomearTudo.App.ViewModels
 
         private void ApplySort()
         {
-            if (Files.Count < 2) return;
-            IEnumerable<BindableFileItem> ordered = Files;
-            switch (SortMode)
+            if (Files.Count >= 2)
             {
-                case "Nome Z-A": ordered = Files.OrderByDescending(f => f.OriginalName, StringComparer.CurrentCultureIgnoreCase); break;
-                case "Data recente": ordered = Files.OrderByDescending(f => f.Model.LastWriteTime); break;
-                case "Tamanho maior": ordered = Files.OrderByDescending(f => f.Model.Size); break;
-                case "Aleatório": ordered = Files.OrderBy(_ => Guid.NewGuid()); break;
-                default: ordered = Files.OrderBy(f => f.OriginalName, StringComparer.CurrentCultureIgnoreCase); break;
+                IEnumerable<BindableFileItem> ordered = Files;
+                switch (SortMode)
+                {
+                    case "Nome Z-A": ordered = Files.OrderByDescending(f => f.OriginalName, StringComparer.CurrentCultureIgnoreCase); break;
+                    case "Data recente": ordered = Files.OrderByDescending(f => f.Model.LastWriteTime); break;
+                    case "Tamanho maior": ordered = Files.OrderByDescending(f => f.Model.Size); break;
+                    case "Aleatório": ordered = Files.OrderBy(_ => Guid.NewGuid()); break;
+                    default: ordered = Files.OrderBy(f => f.OriginalName, StringComparer.CurrentCultureIgnoreCase); break;
+                }
+
+                Files.ResetWith(ordered.ToList());
             }
-            var list = ordered.ToList();
-            Files.Clear();
-            foreach (var item in list) Files.Add(item);
+
+            // A ordem interfere na numeração. Recalcula exatamente uma vez após ordenar.
             RefreshPreview();
         }
 

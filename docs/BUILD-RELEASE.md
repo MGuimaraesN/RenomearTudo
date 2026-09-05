@@ -34,7 +34,7 @@ Para publicar:
 1. GitHub → **Actions**.
 2. Abra **Build Release (Manual)**.
 3. **Run workflow**.
-4. Digite `2.1.1` (ou outra versão `X.Y.Z`).
+4. Digite `2.2.0` (ou outra versão `X.Y.Z`).
 
 Se todas as etapas passarem, o segundo job **Publish GitHub Release** roda obrigatoriamente. Se o job de build/testes falhar, o GitHub marcará o job de Release como `skipped` de propósito, para nunca publicar um executável não validado. Não existe mais a antiga condição `startsWith(github.ref, 'refs/tags/v')`, que fazia o job ser pulado em execuções manuais.
 
