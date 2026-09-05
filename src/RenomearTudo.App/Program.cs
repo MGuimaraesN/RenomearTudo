@@ -5,6 +5,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Threading;
+using RenomearTudo.App.Services;
 
 namespace RenomearTudo.App
 {
@@ -56,8 +57,23 @@ namespace RenomearTudo.App
                         window.UpdateLayout();
                         window.Dispatcher.Invoke(() => { }, DispatcherPriority.ApplicationIdle);
                         window.UpdateLayout();
+
+                        // Exercita a nova paleta completa. Isso detecta recursos ausentes e
+                        // regressões de tema antes de uma Release chegar ao usuário.
+                        var previousTheme = ThemeService.CurrentMode;
+                        foreach (var theme in new[] { "Escuro", "Claro" })
+                        {
+                            ThemeService.Apply(theme);
+                            window.Dispatcher.Invoke(() => { }, DispatcherPriority.ApplicationIdle);
+                            window.UpdateLayout();
+                        }
+                        ThemeService.Apply(previousTheme);
+                        window.Dispatcher.Invoke(() => { }, DispatcherPriority.ApplicationIdle);
+                        window.UpdateLayout();
+
                         window.Close();
 
+                        WriteLog("Theme switch check: OK.");
                         WriteLog("Startup check: OK.");
                         return 0;
                     }

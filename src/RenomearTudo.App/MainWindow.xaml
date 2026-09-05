@@ -2,241 +2,610 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:infra="clr-namespace:RenomearTudo.App.Infrastructure"
-        Title="Renomear Tudo" Width="1440" Height="860" MinWidth="1080" MinHeight="680"
-        WindowStartupLocation="CenterScreen" AllowDrop="True" Drop="Window_Drop" DragOver="Window_DragOver">
+        xmlns:shell="clr-namespace:System.Windows.Shell;assembly=PresentationFramework"
+        Title="Renomear Tudo"
+        Width="1460" Height="900"
+        MinWidth="1120" MinHeight="720"
+        WindowStartupLocation="CenterScreen"
+        WindowStyle="None"
+        ResizeMode="CanResize"
+        UseLayoutRounding="True"
+        SnapsToDevicePixels="True"
+        AllowDrop="True"
+        Drop="Window_Drop"
+        DragOver="Window_DragOver"
+        StateChanged="Window_StateChanged">
+
+    <shell:WindowChrome.WindowChrome>
+        <shell:WindowChrome CaptionHeight="46"
+                            ResizeBorderThickness="6"
+                            GlassFrameThickness="0"
+                            CornerRadius="0"
+                            UseAeroCaptionButtons="False" />
+    </shell:WindowChrome.WindowChrome>
+
     <Window.Resources>
         <infra:InverseBooleanToVisibilityConverter x:Key="InverseBoolVisibility" />
+        <infra:ZeroToVisibilityConverter x:Key="ZeroVisibility" />
         <infra:StatusBrushConverter x:Key="StatusBrushConverter" />
-        <Style x:Key="Card" TargetType="Border">
-            <Setter Property="Background" Value="{DynamicResource SurfaceBrush}" />
-            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}" />
-            <Setter Property="BorderThickness" Value="1" />
+
+        <Style x:Key="StatCard" TargetType="Border" BasedOn="{StaticResource FluentCard}">
+            <Setter Property="Padding" Value="14,12" />
             <Setter Property="CornerRadius" Value="8" />
-            <Setter Property="Padding" Value="14" />
         </Style>
-        <Style x:Key="AccentButton" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
-            <Setter Property="Background" Value="{DynamicResource AccentBrush}" />
-            <Setter Property="Foreground" Value="White" />
-            <Setter Property="BorderThickness" Value="0" />
-            <Setter Property="FontWeight" Value="SemiBold" />
-        </Style>
-        <Style x:Key="MutedText" TargetType="TextBlock">
-            <Setter Property="Foreground" Value="{DynamicResource SecondaryTextBrush}" />
+
+        <Style x:Key="MiniLabel" TargetType="TextBlock" BasedOn="{StaticResource CaptionText}">
+            <Setter Property="FontFamily" Value="Segoe UI Semibold" />
+            <Setter Property="TextOptions.TextFormattingMode" Value="Display" />
         </Style>
     </Window.Resources>
 
-    <Grid Margin="18">
+    <Grid Background="{DynamicResource WindowBackgroundBrush}">
         <Grid.RowDefinitions>
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="12" />
+            <RowDefinition Height="46" />
             <RowDefinition Height="*" />
-            <RowDefinition Height="12" />
-            <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
-        <Grid Grid.Row="0">
-            <Grid.ColumnDefinitions><ColumnDefinition /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
-            <StackPanel>
-                <TextBlock Text="Renomear Tudo" FontSize="25" FontWeight="SemiBold" />
-                <TextBlock Text="Renomeação em massa com prévia, regras e rollback seguro." Style="{StaticResource MutedText}" Margin="0,4,0,0" />
-            </StackPanel>
-            <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
-                <Button Content="+ Arquivos" Command="{Binding AddFilesCommand}" />
-                <Button Content="+ Pasta" Command="{Binding AddFolderCommand}" />
-                <Button Content="Exportar relatório" Command="{Binding ExportReportCommand}" />
-                <ComboBox x:Name="ThemeCombo" Width="110" SelectedIndex="0" SelectionChanged="ThemeCombo_SelectionChanged" Margin="8,4,0,8">
-                    <ComboBoxItem Content="Sistema"/><ComboBoxItem Content="Escuro"/><ComboBoxItem Content="Claro"/>
-                </ComboBox>
-            </StackPanel>
-        </Grid>
-
-        <Grid Grid.Row="2">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="310" />
-                <ColumnDefinition Width="12" />
-                <ColumnDefinition Width="*" />
-                <ColumnDefinition Width="12" />
-                <ColumnDefinition Width="290" />
-            </Grid.ColumnDefinitions>
-
-            <!-- Regras -->
-            <Border Grid.Column="0" Style="{StaticResource Card}">
-                <Grid>
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="210"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/>
-                    </Grid.RowDefinitions>
-                    <TextBlock Text="REGRAS" FontWeight="SemiBold" FontSize="14" />
-                    <Grid Grid.Row="1" Margin="0,10,0,8">
-                        <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-                        <ComboBox x:Name="RuleTypeCombo" ItemsSource="{Binding RuleTypeOptions}" DisplayMemberPath="Label" SelectedIndex="2" />
-                        <Button Grid.Column="1" Content="Adicionar" Click="AddRuleType_Click" Margin="8,4,0,8"/>
-                    </Grid>
-                    <ListBox x:Name="RulesList" Grid.Row="2" ItemsSource="{Binding Rules}" SelectedItem="{Binding SelectedRule}" AllowDrop="True"
-                             PreviewMouseLeftButtonDown="RulesList_PreviewMouseLeftButtonDown" MouseMove="RulesList_MouseMove" Drop="RulesList_Drop">
-                        <ListBox.ItemTemplate>
-                            <DataTemplate>
-                                <Grid Margin="4,6">
-                                    <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-                                    <CheckBox IsChecked="{Binding Enabled}" VerticalAlignment="Center" Margin="0,0,8,0"/>
-                                    <StackPanel Grid.Column="1">
-                                        <TextBlock Text="{Binding DisplayName}" FontWeight="SemiBold" />
-                                        <TextBlock Text="{Binding Summary}" Style="{StaticResource MutedText}" TextTrimming="CharacterEllipsis" />
-                                    </StackPanel>
-                                </Grid>
-                            </DataTemplate>
-                        </ListBox.ItemTemplate>
-                    </ListBox>
-                    <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Center">
-                        <Button Content="↑" Command="{Binding MoveRuleUpCommand}" ToolTip="Mover regra para cima"/>
-                        <Button Content="↓" Command="{Binding MoveRuleDownCommand}" ToolTip="Mover regra para baixo"/>
-                        <Button Content="Excluir" Command="{Binding DeleteRuleCommand}"/>
-                    </StackPanel>
-
-                    <ScrollViewer Grid.Row="4" VerticalScrollBarVisibility="Auto">
-                        <StackPanel DataContext="{Binding SelectedRule}">
-                            <TextBlock Text="Editor da regra" FontWeight="SemiBold" Margin="0,8,0,4" />
-                            <TextBlock Text="Valor / padrão" Style="{StaticResource MutedText}" Visibility="{Binding ShowsText1, Converter={StaticResource BooleanToVisibilityConverter}}"/>
-                            <TextBox Text="{Binding Text1, UpdateSourceTrigger=PropertyChanged}" Visibility="{Binding ShowsText1, Converter={StaticResource BooleanToVisibilityConverter}}"/>
-                            <TextBlock Text="Substituir por" Style="{StaticResource MutedText}" Visibility="{Binding ShowsText2, Converter={StaticResource BooleanToVisibilityConverter}}"/>
-                            <TextBox Text="{Binding Text2, UpdateSourceTrigger=PropertyChanged}" Visibility="{Binding ShowsText2, Converter={StaticResource BooleanToVisibilityConverter}}"/>
-
-                            <StackPanel Visibility="{Binding ShowsNumbering, Converter={StaticResource BooleanToVisibilityConverter}}">
-                                <TextBlock Text="Início / incremento / dígitos" Style="{StaticResource MutedText}"/>
-                                <UniformGrid Columns="3">
-                                    <TextBox Text="{Binding NumberStart, UpdateSourceTrigger=PropertyChanged}" Margin="0,4,4,8"/>
-                                    <TextBox Text="{Binding NumberStep, UpdateSourceTrigger=PropertyChanged}" Margin="4,4,4,8"/>
-                                    <TextBox Text="{Binding NumberPadding, UpdateSourceTrigger=PropertyChanged}" Margin="4,4,0,8"/>
-                                </UniformGrid>
-                            </StackPanel>
-
-                            <StackPanel Visibility="{Binding ShowsPosition, Converter={StaticResource BooleanToVisibilityConverter}}">
-                                <TextBlock Text="Posição (0 = início)" Style="{StaticResource MutedText}"/>
-                                <TextBox Text="{Binding Position, UpdateSourceTrigger=PropertyChanged}"/>
-                            </StackPanel>
-
-                            <StackPanel Visibility="{Binding ShowsCaseMode, Converter={StaticResource BooleanToVisibilityConverter}}">
-                                <TextBlock Text="Formato" Style="{StaticResource MutedText}"/>
-                                <ComboBox ItemsSource="{Binding DataContext.CaseModeOptions, RelativeSource={RelativeSource AncestorType=Window}}" DisplayMemberPath="Label" SelectedValuePath="Mode" SelectedValue="{Binding CaseMode}" />
-                            </StackPanel>
-
-                            <StackPanel Visibility="{Binding ShowsRegexOptions, Converter={StaticResource BooleanToVisibilityConverter}}">
-                                <CheckBox Content="Usar expressão regular (Regex)" IsChecked="{Binding UseRegex}" Margin="0,6"/>
-                                <CheckBox Content="Ignorar maiúsculas/minúsculas" IsChecked="{Binding IgnoreCase}" Margin="0,2,0,6"/>
-                                <CheckBox Content="Apenas primeira ocorrência" IsChecked="{Binding ReplaceFirstOnly}" Margin="0,2,0,6"/>
-                            </StackPanel>
-
-                            <Border Background="{DynamicResource SurfaceAltBrush}" CornerRadius="6" Padding="10" Margin="0,6,0,0" Visibility="{Binding ShowsTemplateHelp, Converter={StaticResource BooleanToVisibilityConverter}}">
-                                <TextBlock TextWrapping="Wrap" Style="{StaticResource MutedText}" Text="Tokens: {nome} {numero} {total} {data} {pasta} {artista} {titulo} {album} {ano} {genero} {faixa}"/>
-                            </Border>
-                        </StackPanel>
-                    </ScrollViewer>
-
-                    <GroupBox Grid.Row="5" Header="Presets">
-                        <StackPanel>
-                            <ComboBox ItemsSource="{Binding Presets}" DisplayMemberPath="Name" SelectedItem="{Binding SelectedPreset}" />
-                            <TextBox Text="{Binding PresetName, UpdateSourceTrigger=PropertyChanged}" ToolTip="Nome do preset" />
-                            <UniformGrid Columns="3"><Button Content="Salvar" Command="{Binding SavePresetCommand}"/><Button Content="Carregar" Command="{Binding LoadPresetCommand}"/><Button Content="Excluir" Command="{Binding DeletePresetCommand}"/></UniformGrid>
-                        </StackPanel>
-                    </GroupBox>
-                </Grid>
-            </Border>
-
-            <!-- Lista -->
-            <Border Grid.Column="2" Style="{StaticResource Card}">
-                <Grid>
-                    <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="10"/><RowDefinition Height="*"/></Grid.RowDefinitions>
-                    <Grid>
-                        <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="150"/><ColumnDefinition Width="150"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-                        <TextBox Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}" Margin="0" VerticalContentAlignment="Center" ToolTip="Buscar por nome original ou novo" />
-                        <ComboBox Grid.Column="1" ItemsSource="{Binding FilterModes}" SelectedItem="{Binding FilterMode}" Margin="8,0,0,0"/>
-                        <ComboBox Grid.Column="2" ItemsSource="{Binding SortModes}" SelectedItem="{Binding SortMode}" Margin="8,0,0,0"/>
-                        <Button Grid.Column="3" Content="Limpar" Command="{Binding ClearCommand}" Margin="8,0,0,0"/>
-                    </Grid>
-
-                    <DataGrid Grid.Row="2" ItemsSource="{Binding FilesView}" SelectedItem="{Binding SelectedFile}" AutoGenerateColumns="False" IsReadOnly="False" SelectionMode="Single" AlternationCount="2">
-                        <DataGrid.Columns>
-                            <DataGridCheckBoxColumn Header="✓" Binding="{Binding Included, UpdateSourceTrigger=PropertyChanged}" Width="42" />
-                            <DataGridTextColumn Header="ORIGINAL" Binding="{Binding OriginalName, Mode=OneWay}" IsReadOnly="True" Width="*" />
-                            <DataGridTextColumn Header="NOVO NOME" Binding="{Binding PreviewName, UpdateSourceTrigger=LostFocus}" IsReadOnly="False" Width="*" />
-                            <DataGridTemplateColumn Header="STATUS" Width="170">
-                                <DataGridTemplateColumn.CellTemplate>
-                                    <DataTemplate>
-                                        <Border Background="{DynamicResource SurfaceAltBrush}" CornerRadius="10" Padding="8,3" HorizontalAlignment="Left">
-                                            <TextBlock Text="{Binding Status}" Foreground="{Binding StatusKind, Converter={StaticResource StatusBrushConverter}}" FontWeight="SemiBold" />
-                                        </Border>
-                                    </DataTemplate>
-                                </DataGridTemplateColumn.CellTemplate>
-                            </DataGridTemplateColumn>
-                        </DataGrid.Columns>
-                    </DataGrid>
-                </Grid>
-            </Border>
-
-            <!-- Detalhes / Histórico -->
-            <Border Grid.Column="4" Style="{StaticResource Card}">
-                <TabControl>
-                    <TabItem Header="Detalhes">
-                        <ScrollViewer VerticalScrollBarVisibility="Auto">
-                            <StackPanel Margin="4,12">
-                                <TextBlock Text="Arquivo selecionado" FontWeight="SemiBold" FontSize="14"/>
-                                <TextBlock Text="Nome" Style="{StaticResource MutedText}" Margin="0,14,0,2"/><TextBlock Text="{Binding SelectedFile.OriginalName}" TextWrapping="Wrap"/>
-                                <TextBlock Text="Novo nome" Style="{StaticResource MutedText}" Margin="0,10,0,2"/><TextBlock Text="{Binding SelectedFile.PreviewName}" TextWrapping="Wrap"/>
-                                <TextBlock Text="Tamanho" Style="{StaticResource MutedText}" Margin="0,10,0,2"/><TextBlock Text="{Binding SelectedFile.Size}"/>
-                                <TextBlock Text="Modificado" Style="{StaticResource MutedText}" Margin="0,10,0,2"/><TextBlock Text="{Binding SelectedFile.Modified}"/>
-                                <TextBlock Text="Caminho" Style="{StaticResource MutedText}" Margin="0,10,0,2"/><TextBlock Text="{Binding SelectedFile.OriginalPath}" TextWrapping="Wrap"/>
-
-                                <GroupBox Header="MP3 / ID3v1" Margin="0,18,0,0">
-                                    <StackPanel>
-                                        <TextBlock><Run Text="Título: "/><Run Text="{Binding SelectedFile.Metadata.Title}"/></TextBlock>
-                                        <TextBlock><Run Text="Artista: "/><Run Text="{Binding SelectedFile.Metadata.Artist}"/></TextBlock>
-                                        <TextBlock><Run Text="Álbum: "/><Run Text="{Binding SelectedFile.Metadata.Album}"/></TextBlock>
-                                        <TextBlock><Run Text="Ano: "/><Run Text="{Binding SelectedFile.Metadata.Year}"/></TextBlock>
-                                        <TextBlock><Run Text="Faixa: "/><Run Text="{Binding SelectedFile.Metadata.Track}"/></TextBlock>
-                                    </StackPanel>
-                                </GroupBox>
-                                <Button Content="Voltar para prévia automática" Command="{Binding ResetManualNameCommand}" Margin="0,18,0,0"/>
-                                <Button Content="Remover selecionado" Command="{Binding RemoveSelectedCommand}" Margin="0,4,0,0"/>
-                            </StackPanel>
-                        </ScrollViewer>
-                    </TabItem>
-                    <TabItem Header="Histórico">
-                        <Grid Margin="4,12">
-                            <Grid.RowDefinitions><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
-                            <ListBox ItemsSource="{Binding History}">
-                                <ListBox.ItemTemplate>
-                                    <DataTemplate>
-                                        <StackPanel Margin="4,8">
-                                            <TextBlock Text="{Binding Timestamp, StringFormat={}{0:dd/MM/yyyy HH:mm}}" FontWeight="SemiBold"/>
-                                            <TextBlock Text="{Binding Count, StringFormat={}{0} arquivos}" Style="{StaticResource MutedText}"/>
-                                            <TextBlock Text="{Binding Folder}" Style="{StaticResource MutedText}" TextTrimming="CharacterEllipsis"/>
-                                            <TextBlock Text="{Binding Result}" Style="{StaticResource MutedText}"/>
-                                        </StackPanel>
-                                    </DataTemplate>
-                                </ListBox.ItemTemplate>
-                            </ListBox>
-                            <Button Grid.Row="1" Content="Desfazer última operação" Command="{Binding UndoCommand}" Margin="0,10,0,0"/>
-                        </Grid>
-                    </TabItem>
-                </TabControl>
-            </Border>
-        </Grid>
-
-        <Border Grid.Row="4" Style="{StaticResource Card}" Padding="12">
+        <!-- Barra de título própria para o dark mode ficar consistente em todas as versões do Windows. -->
+        <Border Grid.Row="0"
+                Background="{DynamicResource NavigationBackgroundBrush}"
+                BorderBrush="{DynamicResource BorderBrush}"
+                BorderThickness="0,0,0,1"
+                MouseLeftButtonDown="TitleBar_MouseLeftButtonDown">
             <Grid>
-                <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-                <StackPanel VerticalAlignment="Center">
-                    <TextBlock Text="{Binding Summary, Mode=OneWay}" FontWeight="SemiBold" />
-                    <TextBlock Text="Projeto original © 2004-2005 Daniel S. Leite" Style="{StaticResource MutedText}" FontSize="11" Margin="0,3,0,0" />
-                    <StackPanel Orientation="Horizontal" Visibility="{Binding IsBusy, Mode=OneWay, Converter={StaticResource BooleanToVisibilityConverter}}" Margin="0,6,0,0">
-                        <ProgressBar Width="260" Height="8" Minimum="0" Maximum="100" Value="{Binding ProgressValue, Mode=OneWay}" />
-                        <TextBlock Text="{Binding ProgressText, Mode=OneWay}" Style="{StaticResource MutedText}" Margin="10,-4,0,0" />
-                        <Button Content="Cancelar" Command="{Binding CancelCommand}" Margin="10,-8,0,-8"/>
-                    </StackPanel>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="14,0,0,0">
+                    <Border Width="26" Height="26" CornerRadius="6" Background="{DynamicResource AccentBrush}" VerticalAlignment="Center">
+                        <TextBlock Text="R" Foreground="{DynamicResource AccentTextBrush}" FontFamily="Segoe UI Semibold" FontSize="14" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    </Border>
+                    <TextBlock Text="Renomear Tudo" FontFamily="Segoe UI Semibold" FontSize="13" VerticalAlignment="Center" Margin="9,0,0,0" />
                 </StackPanel>
-                <Button Grid.Column="1" Style="{StaticResource AccentButton}" Command="{Binding RenameCommand}" MinWidth="180" FontSize="14">
-                    <TextBlock><Run Text="RENOMEAR "/><Run Text="{Binding ReadyCount, Mode=OneWay}"/><Run Text=" ARQUIVOS"/></TextBlock>
-                </Button>
+
+                <TextBlock Grid.Column="1"
+                           Text="Renomeação em massa segura"
+                           Style="{StaticResource CaptionText}"
+                           HorizontalAlignment="Center"
+                           VerticalAlignment="Center" />
+
+                <StackPanel Grid.Column="2" Orientation="Horizontal">
+                    <Button shell:WindowChrome.IsHitTestVisibleInChrome="True" Style="{StaticResource TitleBarButton}" Content="—" ToolTip="Minimizar" Click="Minimize_Click" />
+                    <Button x:Name="MaximizeButton" shell:WindowChrome.IsHitTestVisibleInChrome="True" Style="{StaticResource TitleBarButton}" Content="□" ToolTip="Maximizar" Click="MaximizeRestore_Click" />
+                    <Button x:Name="CloseButton" shell:WindowChrome.IsHitTestVisibleInChrome="True" Style="{StaticResource CloseTitleBarButton}" Content="×" ToolTip="Fechar" Click="Close_Click" />
+                </StackPanel>
             </Grid>
         </Border>
+
+        <Grid Grid.Row="1">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="220" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+
+            <!-- NavigationView-like -->
+            <Border Grid.Column="0"
+                    Background="{DynamicResource NavigationBackgroundBrush}"
+                    BorderBrush="{DynamicResource BorderBrush}"
+                    BorderThickness="0,0,1,0">
+                <Grid Margin="0,14,0,12">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="18" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+
+                    <StackPanel Margin="18,4,16,0">
+                        <TextBlock Text="Workspace" Style="{StaticResource MiniLabel}" />
+                        <TextBlock Text="Organize nomes sem perder o controle." Style="{StaticResource CaptionText}" TextWrapping="Wrap" Margin="0,5,0,0" />
+                    </StackPanel>
+
+                    <StackPanel Grid.Row="2">
+                        <RadioButton x:Name="RenameNav" Style="{StaticResource NavigationItem}" GroupName="MainNavigation" IsChecked="True" Click="RenameNav_Click">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="↔" FontFamily="Segoe UI Symbol" FontSize="16" Width="28" VerticalAlignment="Center" />
+                                <TextBlock Text="Renomear" VerticalAlignment="Center" />
+                            </StackPanel>
+                        </RadioButton>
+                        <RadioButton x:Name="HistoryNav" Style="{StaticResource NavigationItem}" GroupName="MainNavigation" Click="HistoryNav_Click">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="↶" FontFamily="Segoe UI Symbol" FontSize="16" Width="28" VerticalAlignment="Center" />
+                                <TextBlock Text="Histórico" VerticalAlignment="Center" />
+                            </StackPanel>
+                        </RadioButton>
+                    </StackPanel>
+
+                    <StackPanel Grid.Row="4" Margin="16,0,16,2">
+                        <Border Style="{StaticResource SubtleCard}" Margin="0,0,0,12">
+                            <StackPanel>
+                                <TextBlock Text="Aparência" Style="{StaticResource MiniLabel}" />
+                                <ComboBox x:Name="ThemeCombo" Margin="0,8,0,0" SelectionChanged="ThemeCombo_SelectionChanged">
+                                    <ComboBoxItem Content="Sistema" />
+                                    <ComboBoxItem Content="Claro" />
+                                    <ComboBoxItem Content="Escuro" />
+                                </ComboBox>
+                            </StackPanel>
+                        </Border>
+                        <TextBlock Text="Renomear Tudo 2.1.0" Style="{StaticResource CaptionText}" />
+                        <TextBlock Text="Fluent UI · Windows 7/10/11" Style="{StaticResource CaptionText}" Margin="0,2,0,0" />
+                    </StackPanel>
+                </Grid>
+            </Border>
+
+            <TabControl x:Name="WorkspaceTabs" Grid.Column="1" Style="{StaticResource PageHostTabControl}" SelectedIndex="0">
+                <!-- =========================================================== -->
+                <!-- RENOMEAR -->
+                <!-- =========================================================== -->
+                <TabItem>
+                    <Grid Margin="26,22,26,20">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="16" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="16" />
+                            <RowDefinition Height="*" />
+                            <RowDefinition Height="14" />
+                            <RowDefinition Height="Auto" />
+                        </Grid.RowDefinitions>
+
+                        <!-- Cabeçalho + CommandBar -->
+                        <Grid Grid.Row="0">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <StackPanel>
+                                <TextBlock Text="Renomear arquivos" Style="{StaticResource PageTitle}" />
+                                <TextBlock Text="Monte as regras, confira a prévia e aplique somente quando tudo estiver certo." Style="{StaticResource SecondaryText}" Margin="0,5,0,0" />
+                            </StackPanel>
+                            <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                                <Button Command="{Binding AddFilesCommand}" Margin="0,0,8,0">
+                                    <StackPanel Orientation="Horizontal"><TextBlock Text="+" FontSize="17" Margin="0,-2,7,0"/><TextBlock Text="Arquivos" VerticalAlignment="Center"/></StackPanel>
+                                </Button>
+                                <Button Command="{Binding AddFolderCommand}" Margin="0,0,8,0">
+                                    <StackPanel Orientation="Horizontal"><TextBlock Text="+" FontSize="17" Margin="0,-2,7,0"/><TextBlock Text="Pasta" VerticalAlignment="Center"/></StackPanel>
+                                </Button>
+                                <Button Style="{StaticResource SubtleButton}" Command="{Binding ExportReportCommand}" Content="Exportar relatório" />
+                            </StackPanel>
+                        </Grid>
+
+                        <!-- Estatísticas -->
+                        <Grid Grid.Row="2">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition />
+                                <ColumnDefinition Width="10" />
+                                <ColumnDefinition />
+                                <ColumnDefinition Width="10" />
+                                <ColumnDefinition />
+                                <ColumnDefinition Width="10" />
+                                <ColumnDefinition />
+                            </Grid.ColumnDefinitions>
+
+                            <Border Grid.Column="0" Style="{StaticResource StatCard}">
+                                <Grid>
+                                    <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                    <StackPanel>
+                                        <TextBlock Text="ARQUIVOS" Style="{StaticResource MiniLabel}" />
+                                        <TextBlock Text="{Binding TotalCount, Mode=OneWay}" FontFamily="Segoe UI Semibold" FontSize="22" Margin="0,3,0,0" />
+                                    </StackPanel>
+                                    <Border Grid.Column="1" Width="32" Height="32" CornerRadius="8" Background="{DynamicResource AccentSubtleBrush}" VerticalAlignment="Center">
+                                        <TextBlock Text="≡" FontSize="17" Foreground="{DynamicResource AccentBrush}" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                    </Border>
+                                </Grid>
+                            </Border>
+
+                            <Border Grid.Column="2" Style="{StaticResource StatCard}">
+                                <Grid>
+                                    <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                    <StackPanel>
+                                        <TextBlock Text="PRONTOS" Style="{StaticResource MiniLabel}" />
+                                        <TextBlock Text="{Binding ReadyCount, Mode=OneWay}" FontFamily="Segoe UI Semibold" FontSize="22" Margin="0,3,0,0" />
+                                    </StackPanel>
+                                    <Border Grid.Column="1" Width="32" Height="32" CornerRadius="8" Background="{DynamicResource SuccessSubtleBrush}" VerticalAlignment="Center">
+                                        <TextBlock Text="✓" FontSize="15" Foreground="{DynamicResource SuccessBrush}" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                    </Border>
+                                </Grid>
+                            </Border>
+
+                            <Border Grid.Column="4" Style="{StaticResource StatCard}">
+                                <Grid>
+                                    <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                    <StackPanel>
+                                        <TextBlock Text="CONFLITOS" Style="{StaticResource MiniLabel}" />
+                                        <TextBlock Text="{Binding ConflictCount, Mode=OneWay}" FontFamily="Segoe UI Semibold" FontSize="22" Margin="0,3,0,0" />
+                                    </StackPanel>
+                                    <Border Grid.Column="1" Width="32" Height="32" CornerRadius="8" Background="{DynamicResource WarningSubtleBrush}" VerticalAlignment="Center">
+                                        <TextBlock Text="!" FontFamily="Segoe UI Semibold" FontSize="15" Foreground="{DynamicResource WarningBrush}" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                    </Border>
+                                </Grid>
+                            </Border>
+
+                            <Border Grid.Column="6" Style="{StaticResource StatCard}">
+                                <Grid>
+                                    <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                    <StackPanel>
+                                        <TextBlock Text="REGRAS" Style="{StaticResource MiniLabel}" />
+                                        <TextBlock Text="{Binding Rules.Count, Mode=OneWay}" FontFamily="Segoe UI Semibold" FontSize="22" Margin="0,3,0,0" />
+                                    </StackPanel>
+                                    <Border Grid.Column="1" Width="32" Height="32" CornerRadius="8" Background="{DynamicResource AccentSubtleBrush}" VerticalAlignment="Center">
+                                        <TextBlock Text="≋" FontSize="16" Foreground="{DynamicResource AccentBrush}" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                    </Border>
+                                </Grid>
+                            </Border>
+                        </Grid>
+
+                        <!-- Workspace principal -->
+                        <Grid Grid.Row="4">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="355" />
+                                <ColumnDefinition Width="14" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+
+                            <!-- Painel de regras -->
+                            <Border Grid.Column="0" Style="{StaticResource FluentCard}" Padding="0">
+                                <Grid>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="185" />
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="1" />
+                                        <RowDefinition Height="*" />
+                                        <RowDefinition Height="1" />
+                                        <RowDefinition Height="Auto" />
+                                    </Grid.RowDefinitions>
+
+                                    <StackPanel Margin="16,15,16,10">
+                                        <TextBlock Text="Transformações" Style="{StaticResource SectionTitle}" />
+                                        <TextBlock Text="As regras são aplicadas de cima para baixo." Style="{StaticResource CaptionText}" Margin="0,4,0,0" />
+                                    </StackPanel>
+
+                                    <Grid Grid.Row="1" Margin="16,0,16,10">
+                                        <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                        <ComboBox x:Name="RuleTypeCombo" ItemsSource="{Binding RuleTypeOptions}" DisplayMemberPath="Label" SelectedIndex="2" />
+                                        <Button Grid.Column="1" Style="{StaticResource PrimaryButton}" Content="Adicionar" Click="AddRuleType_Click" Margin="8,0,0,0" MinWidth="82" />
+                                    </Grid>
+
+                                    <ListBox x:Name="RulesList"
+                                             Grid.Row="2"
+                                             Margin="8,0"
+                                             ItemsSource="{Binding Rules}"
+                                             SelectedItem="{Binding SelectedRule}"
+                                             AllowDrop="True"
+                                             PreviewMouseLeftButtonDown="RulesList_PreviewMouseLeftButtonDown"
+                                             MouseMove="RulesList_MouseMove"
+                                             Drop="RulesList_Drop">
+                                        <ListBox.ItemTemplate>
+                                            <DataTemplate>
+                                                <Grid>
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="18" />
+                                                        <ColumnDefinition Width="Auto" />
+                                                        <ColumnDefinition Width="*" />
+                                                    </Grid.ColumnDefinitions>
+                                                    <TextBlock Text="⋮" Foreground="{DynamicResource TertiaryTextBrush}" FontSize="17" VerticalAlignment="Center" Margin="0,0,4,0" />
+                                                    <CheckBox Grid.Column="1" IsChecked="{Binding Enabled}" VerticalAlignment="Center" Margin="0,0,8,0" />
+                                                    <StackPanel Grid.Column="2">
+                                                        <TextBlock Text="{Binding DisplayName}" FontFamily="Segoe UI Semibold" FontSize="12" />
+                                                        <TextBlock Text="{Binding Summary}" Style="{StaticResource CaptionText}" TextTrimming="CharacterEllipsis" Margin="0,2,0,0" />
+                                                    </StackPanel>
+                                                </Grid>
+                                            </DataTemplate>
+                                        </ListBox.ItemTemplate>
+                                    </ListBox>
+
+                                    <Grid Grid.Row="3" Margin="12,6,12,9">
+                                        <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                        <StackPanel Orientation="Horizontal">
+                                            <Button Style="{StaticResource SubtleButton}" Content="↑" Command="{Binding MoveRuleUpCommand}" ToolTip="Mover para cima" Width="38" Padding="0" />
+                                            <Button Style="{StaticResource SubtleButton}" Content="↓" Command="{Binding MoveRuleDownCommand}" ToolTip="Mover para baixo" Width="38" Padding="0" Margin="2,0,0,0" />
+                                        </StackPanel>
+                                        <Button Grid.Column="1" Style="{StaticResource SubtleButton}" Content="Remover" Command="{Binding DeleteRuleCommand}" />
+                                    </Grid>
+
+                                    <Border Grid.Row="4" Background="{DynamicResource BorderBrush}" />
+
+                                    <ScrollViewer Grid.Row="5" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Margin="16,12,10,12">
+                                        <StackPanel DataContext="{Binding SelectedRule}">
+                                            <TextBlock Text="Configuração da regra" Style="{StaticResource MiniLabel}" Margin="0,0,0,9" />
+
+                                            <StackPanel Visibility="{Binding ShowsText1, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                                <TextBlock Text="Valor / padrão" Style="{StaticResource CaptionText}" Margin="0,0,0,4" />
+                                                <TextBox Text="{Binding Text1, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,5,10" />
+                                            </StackPanel>
+
+                                            <StackPanel Visibility="{Binding ShowsText2, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                                <TextBlock Text="Substituir por" Style="{StaticResource CaptionText}" Margin="0,0,0,4" />
+                                                <TextBox Text="{Binding Text2, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,5,10" />
+                                            </StackPanel>
+
+                                            <StackPanel Visibility="{Binding ShowsNumbering, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                                <TextBlock Text="Numeração" Style="{StaticResource CaptionText}" Margin="0,0,0,4" />
+                                                <Grid Margin="0,0,5,10">
+                                                    <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="8"/><ColumnDefinition/><ColumnDefinition Width="8"/><ColumnDefinition/></Grid.ColumnDefinitions>
+                                                    <StackPanel><TextBlock Text="Início" Style="{StaticResource CaptionText}"/><TextBox Text="{Binding NumberStart, UpdateSourceTrigger=PropertyChanged}" Margin="0,4,0,0"/></StackPanel>
+                                                    <StackPanel Grid.Column="2"><TextBlock Text="Passo" Style="{StaticResource CaptionText}"/><TextBox Text="{Binding NumberStep, UpdateSourceTrigger=PropertyChanged}" Margin="0,4,0,0"/></StackPanel>
+                                                    <StackPanel Grid.Column="4"><TextBlock Text="Dígitos" Style="{StaticResource CaptionText}"/><TextBox Text="{Binding NumberPadding, UpdateSourceTrigger=PropertyChanged}" Margin="0,4,0,0"/></StackPanel>
+                                                </Grid>
+                                            </StackPanel>
+
+                                            <StackPanel Visibility="{Binding ShowsPosition, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                                <TextBlock Text="Posição (0 = início)" Style="{StaticResource CaptionText}" Margin="0,0,0,4" />
+                                                <TextBox Text="{Binding Position, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,5,10" />
+                                            </StackPanel>
+
+                                            <StackPanel Visibility="{Binding ShowsCaseMode, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                                <TextBlock Text="Formato" Style="{StaticResource CaptionText}" Margin="0,0,0,4" />
+                                                <ComboBox ItemsSource="{Binding DataContext.CaseModeOptions, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                          DisplayMemberPath="Label"
+                                                          SelectedValuePath="Mode"
+                                                          SelectedValue="{Binding CaseMode}"
+                                                          Margin="0,0,5,10" />
+                                            </StackPanel>
+
+                                            <StackPanel Visibility="{Binding ShowsRegexOptions, Converter={StaticResource BooleanToVisibilityConverter}}" Margin="0,0,5,7">
+                                                <CheckBox Content="Usar expressão regular (Regex)" IsChecked="{Binding UseRegex}" Margin="0,4" />
+                                                <CheckBox Content="Ignorar maiúsculas/minúsculas" IsChecked="{Binding IgnoreCase}" Margin="0,4" />
+                                                <CheckBox Content="Somente a primeira ocorrência" IsChecked="{Binding ReplaceFirstOnly}" Margin="0,4" />
+                                            </StackPanel>
+
+                                            <Border Style="{StaticResource SubtleCard}" Margin="0,5,5,0" Visibility="{Binding ShowsTemplateHelp, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                                <StackPanel>
+                                                    <TextBlock Text="Tokens disponíveis" Style="{StaticResource MiniLabel}" />
+                                                    <TextBlock Text="{}{nome}  {numero}  {total}  {data}  {pasta}" Style="{StaticResource CaptionText}" TextWrapping="Wrap" Margin="0,5,0,0" />
+                                                    <TextBlock Text="{}{artista}  {titulo}  {album}  {ano}  {genero}  {faixa}" Style="{StaticResource CaptionText}" TextWrapping="Wrap" Margin="0,2,0,0" />
+                                                </StackPanel>
+                                            </Border>
+                                        </StackPanel>
+                                    </ScrollViewer>
+
+                                    <Border Grid.Row="6" Background="{DynamicResource BorderBrush}" />
+
+                                    <Grid Grid.Row="7" Margin="16,10,16,14">
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto" />
+                                            <RowDefinition Height="8" />
+                                            <RowDefinition Height="Auto" />
+                                            <RowDefinition Height="7" />
+                                            <RowDefinition Height="Auto" />
+                                        </Grid.RowDefinitions>
+                                        <TextBlock Text="Presets" Style="{StaticResource MiniLabel}" VerticalAlignment="Center" />
+                                        <Grid Grid.Row="2">
+                                            <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="8"/><ColumnDefinition/></Grid.ColumnDefinitions>
+                                            <ComboBox ItemsSource="{Binding Presets}" DisplayMemberPath="Name" SelectedItem="{Binding SelectedPreset}" />
+                                            <TextBox Grid.Column="2" Text="{Binding PresetName, UpdateSourceTrigger=PropertyChanged}" ToolTip="Nome para salvar um novo preset" />
+                                        </Grid>
+                                        <StackPanel Grid.Row="4" Orientation="Horizontal" HorizontalAlignment="Right">
+                                            <Button Style="{StaticResource SubtleButton}" Content="Carregar" Command="{Binding LoadPresetCommand}" MinHeight="28" Padding="8,3" />
+                                            <Button Style="{StaticResource SubtleButton}" Content="Excluir" Command="{Binding DeletePresetCommand}" MinHeight="28" Padding="8,3" Margin="4,0,0,0" />
+                                            <Button Style="{StaticResource PrimaryButton}" Content="Salvar" Command="{Binding SavePresetCommand}" MinHeight="28" Padding="10,3" Margin="4,0,0,0" />
+                                        </StackPanel>
+                                    </Grid>
+                                </Grid>
+                            </Border>
+
+                            <!-- Lista / prévia -->
+                            <Border Grid.Column="2" Style="{StaticResource FluentCard}" Padding="0">
+                                <Grid>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="1" />
+                                        <RowDefinition Height="*" />
+                                        <RowDefinition Height="1" />
+                                        <RowDefinition Height="Auto" />
+                                    </Grid.RowDefinitions>
+
+                                    <Grid Margin="16,14,16,12">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="135" />
+                                            <ColumnDefinition Width="145" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+                                        <Grid>
+                                            <TextBox Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}" Margin="0" ToolTip="Buscar por nome original ou novo" />
+                                            <TextBlock Text="Buscar arquivos..." VerticalAlignment="Center" Margin="11,0,0,0" IsHitTestVisible="False">
+                                                <TextBlock.Style>
+                                                    <Style TargetType="TextBlock" BasedOn="{StaticResource CaptionText}">
+                                                        <Setter Property="Visibility" Value="Collapsed" />
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding SearchText}" Value=""><Setter Property="Visibility" Value="Visible"/></DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </TextBlock.Style>
+                                            </TextBlock>
+                                        </Grid>
+                                        <ComboBox Grid.Column="1" ItemsSource="{Binding FilterModes}" SelectedItem="{Binding FilterMode}" Margin="8,0,0,0" />
+                                        <ComboBox Grid.Column="2" ItemsSource="{Binding SortModes}" SelectedItem="{Binding SortMode}" Margin="8,0,0,0" />
+                                        <Button Grid.Column="3" Style="{StaticResource SubtleButton}" Content="Limpar" Command="{Binding ClearCommand}" Margin="8,0,0,0" />
+                                    </Grid>
+
+                                    <Border Grid.Row="1" Background="{DynamicResource BorderBrush}" />
+
+                                    <Grid Grid.Row="2">
+                                        <DataGrid ItemsSource="{Binding FilesView}"
+                                                  SelectedItem="{Binding SelectedFile}"
+                                                  AutoGenerateColumns="False"
+                                                  IsReadOnly="False"
+                                                  SelectionMode="Single"
+                                                  AlternationCount="2">
+                                            <DataGrid.Columns>
+                                                <DataGridCheckBoxColumn Header="" Binding="{Binding Included, UpdateSourceTrigger=PropertyChanged}" Width="46" />
+                                                <DataGridTextColumn Header="NOME ORIGINAL" Binding="{Binding OriginalName, Mode=OneWay}" IsReadOnly="True" Width="*" />
+                                                <DataGridTextColumn Header="PRÉVIA DO NOVO NOME" Binding="{Binding PreviewName, UpdateSourceTrigger=LostFocus}" IsReadOnly="False" Width="*" />
+                                                <DataGridTemplateColumn Header="STATUS" Width="150">
+                                                    <DataGridTemplateColumn.CellTemplate>
+                                                        <DataTemplate>
+                                                            <Border Background="{DynamicResource SurfaceAltBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="10" Padding="8,3" HorizontalAlignment="Left">
+                                                                <TextBlock Text="{Binding Status}" Foreground="{Binding StatusKind, Converter={StaticResource StatusBrushConverter}}" FontFamily="Segoe UI Semibold" FontSize="11" />
+                                                            </Border>
+                                                        </DataTemplate>
+                                                    </DataGridTemplateColumn.CellTemplate>
+                                                </DataGridTemplateColumn>
+                                            </DataGrid.Columns>
+                                        </DataGrid>
+
+                                        <!-- Empty state / drop zone -->
+                                        <Border Background="{DynamicResource SurfaceBrush}" Visibility="{Binding TotalCount, Converter={StaticResource ZeroVisibility}}" IsHitTestVisible="False">
+                                            <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" MaxWidth="390">
+                                                <Border Width="62" Height="62" CornerRadius="16" Background="{DynamicResource AccentSubtleBrush}" HorizontalAlignment="Center">
+                                                    <TextBlock Text="+" FontSize="32" FontFamily="Segoe UI" FontWeight="Light" Foreground="{DynamicResource AccentBrush}" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,-4,0,0" />
+                                                </Border>
+                                                <TextBlock Text="Adicione seus arquivos" FontFamily="Segoe UI Semibold" FontSize="18" HorizontalAlignment="Center" Margin="0,16,0,0" />
+                                                <TextBlock Text="Arraste arquivos ou pastas para esta janela, ou use os botões Arquivos e Pasta acima." Style="{StaticResource SecondaryText}" TextWrapping="Wrap" TextAlignment="Center" Margin="0,7,0,0" />
+                                            </StackPanel>
+                                        </Border>
+                                    </Grid>
+
+                                    <Border Grid.Row="3" Background="{DynamicResource BorderBrush}" />
+
+                                    <!-- Detalhes compactos do item selecionado -->
+                                    <Grid Grid.Row="4" Margin="16,12,16,14">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="2*" />
+                                            <ColumnDefinition Width="1" />
+                                            <ColumnDefinition Width="170" />
+                                            <ColumnDefinition Width="1" />
+                                            <ColumnDefinition Width="190" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+
+                                        <StackPanel Margin="0,0,14,0">
+                                            <TextBlock Text="ARQUIVO SELECIONADO" Style="{StaticResource MiniLabel}" />
+                                            <TextBlock Text="{Binding SelectedFile.OriginalName}" TextTrimming="CharacterEllipsis" FontFamily="Segoe UI Semibold" Margin="0,4,0,0" />
+                                            <TextBlock Text="{Binding SelectedFile.OriginalPath}" Style="{StaticResource CaptionText}" TextTrimming="CharacterEllipsis" Margin="0,3,0,0" ToolTip="{Binding SelectedFile.OriginalPath}" />
+                                        </StackPanel>
+
+                                        <Border Grid.Column="1" Background="{DynamicResource BorderBrush}" Margin="0,0,14,0" />
+
+                                        <StackPanel Grid.Column="2" Margin="0,0,14,0">
+                                            <TextBlock Text="DETALHES" Style="{StaticResource MiniLabel}" />
+                                            <TextBlock Margin="0,4,0,0"><Run Text="Tamanho: "/><Run Text="{Binding SelectedFile.Size}"/></TextBlock>
+                                            <TextBlock Style="{StaticResource CaptionText}" Margin="0,3,0,0"><Run Text="Modificado: "/><Run Text="{Binding SelectedFile.Modified}"/></TextBlock>
+                                        </StackPanel>
+
+                                        <Border Grid.Column="3" Background="{DynamicResource BorderBrush}" Margin="0,0,14,0" />
+
+                                        <StackPanel Grid.Column="4" Margin="0,0,14,0">
+                                            <TextBlock Text="MP3 / ID3" Style="{StaticResource MiniLabel}" />
+                                            <TextBlock Text="{Binding SelectedFile.Metadata.Title}" TextTrimming="CharacterEllipsis" Margin="0,4,0,0" />
+                                            <TextBlock Style="{StaticResource CaptionText}" TextTrimming="CharacterEllipsis" Margin="0,3,0,0"><Run Text="{Binding SelectedFile.Metadata.Artist}"/><Run Text="  ·  "/><Run Text="{Binding SelectedFile.Metadata.Album}"/></TextBlock>
+                                        </StackPanel>
+
+                                        <StackPanel Grid.Column="5" Orientation="Horizontal" VerticalAlignment="Center">
+                                            <Button Style="{StaticResource SubtleButton}" Content="Restaurar prévia" Command="{Binding ResetManualNameCommand}" Margin="0,0,6,0" />
+                                            <Button Style="{StaticResource DangerButton}" Content="Remover" Command="{Binding RemoveSelectedCommand}" />
+                                        </StackPanel>
+                                    </Grid>
+                                </Grid>
+                            </Border>
+                        </Grid>
+
+                        <!-- Action bar -->
+                        <Border Grid.Row="6" Style="{StaticResource FluentCard}" Padding="14,12">
+                            <Grid>
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+
+                                <StackPanel VerticalAlignment="Center">
+                                    <TextBlock Text="{Binding Summary, Mode=OneWay}" FontFamily="Segoe UI Semibold" />
+                                    <Grid Visibility="{Binding IsBusy, Mode=OneWay, Converter={StaticResource BooleanToVisibilityConverter}}" Margin="0,8,24,0" MaxWidth="620" HorizontalAlignment="Left">
+                                        <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="6"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+                                        <ProgressBar Minimum="0" Maximum="100" Value="{Binding ProgressValue, Mode=OneWay}" />
+                                        <TextBlock Grid.Row="2" Text="{Binding ProgressText, Mode=OneWay}" Style="{StaticResource CaptionText}" />
+                                    </Grid>
+                                </StackPanel>
+
+                                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                                    <Button Style="{StaticResource SubtleButton}" Content="Cancelar" Command="{Binding CancelCommand}" Visibility="{Binding IsBusy, Converter={StaticResource BooleanToVisibilityConverter}}" Margin="0,0,8,0" />
+                                    <Button Style="{StaticResource PrimaryButton}" Command="{Binding RenameCommand}" MinWidth="210" MinHeight="40" FontSize="13">
+                                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                                            <TextBlock Text="Renomear" Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" FontFamily="Segoe UI Semibold" />
+                                            <Border Background="#24FFFFFF" CornerRadius="9" Padding="7,1" Margin="9,0,0,0">
+                                                <TextBlock Text="{Binding ReadyCount, Mode=OneWay}" Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" FontFamily="Segoe UI Semibold" FontSize="11" />
+                                            </Border>
+                                        </StackPanel>
+                                    </Button>
+                                </StackPanel>
+                            </Grid>
+                        </Border>
+                    </Grid>
+                </TabItem>
+
+                <!-- =========================================================== -->
+                <!-- HISTÓRICO -->
+                <!-- =========================================================== -->
+                <TabItem>
+                    <Grid Margin="26,22,26,20">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="18" />
+                            <RowDefinition Height="*" />
+                        </Grid.RowDefinitions>
+
+                        <Grid>
+                            <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                            <StackPanel>
+                                <TextBlock Text="Histórico" Style="{StaticResource PageTitle}" />
+                                <TextBlock Text="Consulte as operações anteriores e desfaça a última alteração quando necessário." Style="{StaticResource SecondaryText}" Margin="0,5,0,0" />
+                            </StackPanel>
+                            <Button Grid.Column="1" Style="{StaticResource PrimaryButton}" Content="Desfazer última operação" Command="{Binding UndoCommand}" MinWidth="190" VerticalAlignment="Center" />
+                        </Grid>
+
+                        <Border Grid.Row="2" Style="{StaticResource FluentCard}" Padding="0">
+                            <Grid>
+                                <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="1"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+                                <Grid Margin="18,14">
+                                    <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                    <StackPanel>
+                                        <TextBlock Text="Operações recentes" Style="{StaticResource SectionTitle}" />
+                                        <TextBlock Text="O histórico é armazenado localmente e usado pelo recurso de desfazer." Style="{StaticResource CaptionText}" Margin="0,4,0,0" />
+                                    </StackPanel>
+                                    <Border Grid.Column="1" Style="{StaticResource SubtleCard}" Padding="10,6" VerticalAlignment="Center">
+                                        <TextBlock><Run Text="{Binding History.Count, Mode=OneWay}" FontFamily="Segoe UI Semibold"/><Run Text=" operações"/></TextBlock>
+                                    </Border>
+                                </Grid>
+                                <Border Grid.Row="1" Background="{DynamicResource BorderBrush}" />
+                                <ListBox Grid.Row="2" ItemsSource="{Binding History}" Margin="10,8">
+                                    <ListBox.ItemTemplate>
+                                        <DataTemplate>
+                                            <Grid Margin="2,5">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="150" />
+                                                    <ColumnDefinition Width="110" />
+                                                    <ColumnDefinition Width="*" />
+                                                    <ColumnDefinition Width="150" />
+                                                </Grid.ColumnDefinitions>
+                                                <StackPanel>
+                                                    <TextBlock Text="{Binding Timestamp, StringFormat={}{0:dd/MM/yyyy}}" FontFamily="Segoe UI Semibold" />
+                                                    <TextBlock Text="{Binding Timestamp, StringFormat={}{0:HH:mm}}" Style="{StaticResource CaptionText}" Margin="0,2,0,0" />
+                                                </StackPanel>
+                                                <StackPanel Grid.Column="1">
+                                                    <TextBlock Text="ARQUIVOS" Style="{StaticResource MiniLabel}" />
+                                                    <TextBlock Text="{Binding Count}" FontFamily="Segoe UI Semibold" Margin="0,3,0,0" />
+                                                </StackPanel>
+                                                <StackPanel Grid.Column="2" Margin="0,0,18,0">
+                                                    <TextBlock Text="LOCAL" Style="{StaticResource MiniLabel}" />
+                                                    <TextBlock Text="{Binding Folder}" TextTrimming="CharacterEllipsis" Margin="0,3,0,0" ToolTip="{Binding Folder}" />
+                                                </StackPanel>
+                                                <StackPanel Grid.Column="3">
+                                                    <TextBlock Text="RESULTADO" Style="{StaticResource MiniLabel}" />
+                                                    <TextBlock Text="{Binding Result}" Foreground="{DynamicResource SuccessBrush}" FontFamily="Segoe UI Semibold" Margin="0,3,0,0" />
+                                                </StackPanel>
+                                            </Grid>
+                                        </DataTemplate>
+                                    </ListBox.ItemTemplate>
+                                </ListBox>
+                            </Grid>
+                        </Border>
+                    </Grid>
+                </TabItem>
+            </TabControl>
+        </Grid>
     </Grid>
 </Window>

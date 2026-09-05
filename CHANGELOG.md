@@ -1,5 +1,25 @@
 # Changelog
 
+## 2.1.0 - redesign completo Fluent / Windows UI
+
+- Interface principal refeita do zero sem alterar o motor de renomeação.
+- Nova navegação lateral inspirada no NavigationView do Windows.
+- Nova CommandBar para adicionar arquivos, pastas e exportar relatórios.
+- Cards de resumo para arquivos, prontos, conflitos e regras.
+- Workspace reorganizado com editor de transformações e prévia como foco principal.
+- Empty state dedicado para drag & drop.
+- Painel compacto de detalhes do arquivo selecionado e metadados MP3.
+- Histórico movido para uma página própria.
+- Barra de ação fixa com resumo, progresso, cancelamento e CTA de renomeação.
+- Tema Sistema/Claro/Escuro refeito com paleta completa via DynamicResource.
+- ComboBox, popup, TextBox, CheckBox, listas, DataGrid, botões e scrollbars agora respeitam o tema escuro.
+- Tema escolhido passa a ser persistido em `%LOCALAPPDATA%\RenomearTudo\theme.txt`.
+- Modo Sistema acompanha alterações de preferência do Windows quando suportado.
+- Cor de destaque usa a cor de personalização do Windows quando ela estiver disponível.
+- Barra de título customizada para eliminar inconsistência visual do dark mode no chrome antigo do WPF.
+- Mantida a base WPF/.NET Framework 4.8 para preservar Windows 7 SP1, Windows 10 e Windows 11.
+- Nenhuma dependência NuGet adicionada.
+
 ## 2.0.3 - correção definitiva de inicialização e validação de Release
 
 - Corrigida a falha real que impedia a janela WPF de abrir: `ProgressBar.Value` agora usa binding explícito `Mode=OneWay` para a propriedade somente leitura `ProgressValue`.

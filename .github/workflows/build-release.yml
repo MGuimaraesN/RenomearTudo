@@ -6,7 +6,7 @@ on:
       version:
         description: 'Versão da Release (ex.: 2.0.0)'
         required: true
-        default: '2.0.3'
+        default: '2.1.0'
         type: string
 
 concurrency:
@@ -142,11 +142,15 @@ jobs:
             throw "O aplicativo falhou no teste real de inicialização. Código: $exitCode"
           }
 
+          if (-not (Select-String -Path $log -SimpleMatch 'Theme switch check: OK.' -Quiet)) {
+            throw 'A troca de tema Claro/Escuro não foi confirmada pelo startup-check.'
+          }
+
           if (-not (Select-String -Path $log -SimpleMatch 'Startup check: OK.' -Quiet)) {
             throw 'O processo retornou sucesso, mas o startup-check não confirmou a inicialização completa.'
           }
 
-          Write-Host 'GUI startup test: OK'
+          Write-Host 'GUI startup + theme test: OK'
 
       - name: Prepare portable package
         shell: pwsh
@@ -333,12 +337,16 @@ jobs:
             if (Test-Path $startupLog) { Get-Content $startupLog }
             throw "A aplicação instalada falhou no startup-check. Código: $($app.ExitCode)"
           }
-          if (-not (Test-Path $startupLog -PathType Leaf) -or -not (Select-String -Path $startupLog -SimpleMatch 'Startup check: OK.' -Quiet)) {
+          if (-not (Test-Path $startupLog -PathType Leaf) -or -not (Select-String -Path $startupLog -SimpleMatch 'Theme switch check: OK.' -Quiet)) {
+            if (Test-Path $startupLog) { Get-Content $startupLog }
+            throw 'A aplicação instalada não confirmou Theme switch check: OK.'
+          }
+          if (-not (Select-String -Path $startupLog -SimpleMatch 'Startup check: OK.' -Quiet)) {
             if (Test-Path $startupLog) { Get-Content $startupLog }
             throw 'A aplicação instalada não confirmou Startup check: OK.'
           }
 
-          Write-Host 'Installer integration test: OK'
+          Write-Host 'Installer integration + theme test: OK'
           Get-Content $startupLog
 
           $uninstaller = Join-Path $installDir 'unins000.exe'
