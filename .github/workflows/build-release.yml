@@ -6,7 +6,7 @@ on:
       version:
         description: 'Versão da Release (ex.: 2.0.0)'
         required: true
-        default: '2.0.2'
+        default: '2.0.3'
         type: string
 
 concurrency:
@@ -54,6 +54,42 @@ jobs:
         with:
           persist-credentials: false
 
+      - name: Validate repository structure
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+
+          $legacyDirectories = Get-ChildItem -Path $PWD -Directory -Recurse -ErrorAction SilentlyContinue |
+            Where-Object { $_.Name -in @('Codigo', 'Código') }
+          if ($legacyDirectories) {
+            $legacyDirectories.FullName | ForEach-Object { Write-Error "Pasta legada não permitida: $_" }
+            throw 'O repositório contém pasta de código legado que não deve fazer parte da versão moderna.'
+          }
+
+          $legacyExtensions = @('.obj', '.bpl', '.bpi', '.tds')
+          $legacyFiles = Get-ChildItem -Path $PWD -File -Recurse -ErrorAction SilentlyContinue | Where-Object {
+            $_.Name -ieq 'setup.exe' -or $legacyExtensions -contains $_.Extension.ToLowerInvariant()
+          }
+          if ($legacyFiles) {
+            $legacyFiles.FullName | ForEach-Object { Write-Error "Artefato legado não permitido: $_" }
+            throw 'Foram encontrados binários/artefatos legados no repositório.'
+          }
+
+          $required = @(
+            'RenomearTudo.sln',
+            'src\RenomearTudo.App\RenomearTudo.App.csproj',
+            'src\RenomearTudo.Core\RenomearTudo.Core.csproj',
+            'tests\RenomearTudo.SmokeTests\RenomearTudo.SmokeTests.csproj',
+            'installer\RenomearTudo.iss'
+          )
+          foreach ($file in $required) {
+            if (-not (Test-Path (Join-Path $PWD $file) -PathType Leaf)) {
+              throw "Arquivo obrigatório ausente: $file"
+            }
+          }
+
+          Write-Host 'Repository structure: OK'
+
       - name: Setup MSBuild
         uses: microsoft/setup-msbuild@v3
         with:
@@ -65,7 +101,7 @@ jobs:
 
       - name: Build
         shell: pwsh
-        run: msbuild $env:SOLUTION /m /p:Configuration=$env:CONFIGURATION /p:CI=true /p:Version=$env:VERSION
+        run: msbuild $env:SOLUTION /t:Rebuild /m /p:Configuration=$env:CONFIGURATION /p:CI=true /p:Version=$env:VERSION /p:TreatWarningsAsErrors=true
 
       - name: Core smoke tests
         shell: pwsh
@@ -155,11 +191,31 @@ jobs:
           $file = Join-Path $dir 'NDP48-x86-x64-AllOS-ENU.exe'
           New-Item -ItemType Directory -Force -Path $dir | Out-Null
 
-          $url = 'https://download.microsoft.com/download/f/3/a/f3a6af84-da23-40a5-8d1c-49cc10c8e76f/NDP48-x86-x64-AllOS-ENU.exe'
-          Invoke-WebRequest -Uri $url -OutFile $file -UseBasicParsing
+          $urls = @(
+            'https://go.microsoft.com/fwlink/?linkid=2088631',
+            'https://download.microsoft.com/download/f/3/a/f3a6af84-da23-40a5-8d1c-49cc10c8e76f/NDP48-x86-x64-AllOS-ENU.exe'
+          )
 
-          if (-not (Test-Path $file -PathType Leaf) -or (Get-Item $file).Length -lt 50MB) {
-            throw 'O instalador offline do .NET Framework 4.8 não foi baixado corretamente.'
+          $downloaded = $false
+          foreach ($url in $urls) {
+            for ($attempt = 1; $attempt -le 3 -and -not $downloaded; $attempt++) {
+              try {
+                if (Test-Path $file) { Remove-Item $file -Force }
+                Write-Host "Baixando .NET Framework 4.8 (tentativa $attempt): $url"
+                Invoke-WebRequest -Uri $url -OutFile $file -UseBasicParsing -TimeoutSec 180
+                if ((Test-Path $file -PathType Leaf) -and (Get-Item $file).Length -ge 50MB) {
+                  $downloaded = $true
+                }
+              } catch {
+                Write-Warning $_.Exception.Message
+                Start-Sleep -Seconds 3
+              }
+            }
+            if ($downloaded) { break }
+          }
+
+          if (-not $downloaded) {
+            throw 'O instalador offline oficial do .NET Framework 4.8 não pôde ser baixado corretamente.'
           }
 
           $signature = Get-AuthenticodeSignature $file
@@ -213,6 +269,92 @@ jobs:
           if (-not (Test-Path $setup -PathType Leaf)) {
             throw "O instalador esperado não foi gerado: $setup"
           }
+
+      - name: Test generated installer
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $setup = Join-Path $PWD "dist\RenomearTudo-Setup-$env:VERSION.exe"
+          $installDir = Join-Path $env:RUNNER_TEMP "RenomearTudo-InstallTest-$env:VERSION"
+          $setupLog = Join-Path $env:RUNNER_TEMP "RenomearTudo-Setup-$env:VERSION.log"
+          $startupLog = Join-Path $env:LOCALAPPDATA 'RenomearTudo\logs\startup.log'
+
+          if (-not (Test-Path $setup -PathType Leaf)) {
+            throw "Instalador não encontrado para teste: $setup"
+          }
+
+          if (Test-Path $installDir) { Remove-Item $installDir -Recurse -Force }
+          if (Test-Path $setupLog) { Remove-Item $setupLog -Force }
+          if (Test-Path $startupLog) { Remove-Item $startupLog -Force -ErrorAction SilentlyContinue }
+
+          $arguments = @(
+            '/VERYSILENT',
+            '/SUPPRESSMSGBOXES',
+            '/NORESTART',
+            '/SP-',
+            "/DIR=$installDir",
+            "/LOG=$setupLog"
+          )
+
+          $installer = Start-Process -FilePath $setup -ArgumentList $arguments -PassThru
+          if (-not $installer.WaitForExit(120000)) {
+            Stop-Process -Id $installer.Id -Force -ErrorAction SilentlyContinue
+            if (Test-Path $setupLog) { Get-Content $setupLog }
+            throw 'O instalador não concluiu o teste silencioso em 120 segundos.'
+          }
+          $installer.Refresh()
+          if ($installer.ExitCode -ne 0) {
+            if (Test-Path $setupLog) { Get-Content $setupLog }
+            throw "O instalador falhou no teste silencioso. Código: $($installer.ExitCode)"
+          }
+
+          $installedExe = Join-Path $installDir 'RenomearTudo.exe'
+          $requiredInstalled = @(
+            $installedExe,
+            (Join-Path $installDir 'RenomearTudo.exe.config'),
+            (Join-Path $installDir 'RenomearTudo.Core.dll')
+          )
+          foreach ($file in $requiredInstalled) {
+            if (-not (Test-Path $file -PathType Leaf)) {
+              if (Test-Path $setupLog) { Get-Content $setupLog }
+              throw "Arquivo ausente após instalar o Setup: $file"
+            }
+          }
+
+          if (Test-Path $startupLog) { Remove-Item $startupLog -Force -ErrorAction SilentlyContinue }
+          $app = Start-Process -FilePath $installedExe -ArgumentList '--startup-check' -PassThru
+          if (-not $app.WaitForExit(30000)) {
+            Stop-Process -Id $app.Id -Force -ErrorAction SilentlyContinue
+            if (Test-Path $startupLog) { Get-Content $startupLog }
+            throw 'A aplicação instalada não concluiu o startup-check em 30 segundos.'
+          }
+          $app.Refresh()
+          if ($app.ExitCode -ne 0) {
+            if (Test-Path $startupLog) { Get-Content $startupLog }
+            throw "A aplicação instalada falhou no startup-check. Código: $($app.ExitCode)"
+          }
+          if (-not (Test-Path $startupLog -PathType Leaf) -or -not (Select-String -Path $startupLog -SimpleMatch 'Startup check: OK.' -Quiet)) {
+            if (Test-Path $startupLog) { Get-Content $startupLog }
+            throw 'A aplicação instalada não confirmou Startup check: OK.'
+          }
+
+          Write-Host 'Installer integration test: OK'
+          Get-Content $startupLog
+
+          $uninstaller = Join-Path $installDir 'unins000.exe'
+          if (Test-Path $uninstaller -PathType Leaf) {
+            $uninstall = Start-Process -FilePath $uninstaller -ArgumentList @('/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART') -PassThru
+            if (-not $uninstall.WaitForExit(60000)) {
+              Stop-Process -Id $uninstall.Id -Force -ErrorAction SilentlyContinue
+              Write-Warning 'O desinstalador de teste não concluiu em 60 segundos.'
+            } else {
+              $uninstall.Refresh()
+              if ($uninstall.ExitCode -ne 0) {
+                Write-Warning "Uninstaller de teste retornou código $($uninstall.ExitCode)."
+              }
+            }
+          }
+          if (Test-Path $installDir) { Remove-Item $installDir -Recurse -Force -ErrorAction SilentlyContinue }
 
       - name: Microsoft Defender scan
         shell: pwsh
@@ -303,12 +445,42 @@ jobs:
             }
           }
 
-          gh release view $env:RELEASE_TAG *> $null
+          if (-not (Get-Command gh -ErrorAction SilentlyContinue)) {
+            throw 'GitHub CLI (gh) não está disponível no runner.'
+          }
+
+          $PSNativeCommandUseErrorActionPreference = $false
+
+          # Se a tag já existir, ela precisa apontar exatamente para o commit compilado.
+          # Isso impede anexar binários novos a uma tag antiga por acidente.
+          gh api "repos/$env:GH_REPO/git/ref/tags/$env:RELEASE_TAG" *> $null
           if ($LASTEXITCODE -eq 0) {
-            gh release upload $env:RELEASE_TAG @files --clobber
+            $tagCommitRaw = gh api "repos/$env:GH_REPO/commits/$env:RELEASE_TAG" --jq '.sha'
+            $tagCommitExit = $LASTEXITCODE
+            $tagCommit = if ($null -eq $tagCommitRaw) { '' } else { ([string]$tagCommitRaw).Trim() }
+            if ($tagCommitExit -ne 0 -or [string]::IsNullOrWhiteSpace($tagCommit)) {
+              throw "Não foi possível resolver o commit da tag $env:RELEASE_TAG."
+            }
+            if (-not [string]::Equals($tagCommit, $env:TARGET_SHA, [System.StringComparison]::OrdinalIgnoreCase)) {
+              throw "A tag $env:RELEASE_TAG já aponta para $tagCommit, mas este build usa $env:TARGET_SHA. Use uma nova versão para não misturar artefatos de commits diferentes."
+            }
+          }
+
+          gh release view $env:RELEASE_TAG --repo $env:GH_REPO *> $null
+          if ($LASTEXITCODE -eq 0) {
+            gh release upload $env:RELEASE_TAG @files --clobber --repo $env:GH_REPO
+            if ($LASTEXITCODE -ne 0) {
+              throw "Falha ao atualizar os artefatos da Release $env:RELEASE_TAG. Código: $LASTEXITCODE"
+            }
+            Write-Host "Release existente atualizada: $env:RELEASE_TAG"
           } else {
             gh release create $env:RELEASE_TAG @files `
               --target $env:TARGET_SHA `
               --title "Renomear Tudo $env:RELEASE_TAG" `
-              --generate-notes
+              --generate-notes `
+              --repo $env:GH_REPO
+            if ($LASTEXITCODE -ne 0) {
+              throw "Falha ao criar a Release $env:RELEASE_TAG. Código: $LASTEXITCODE"
+            }
+            Write-Host "Release criada: $env:RELEASE_TAG"
           }

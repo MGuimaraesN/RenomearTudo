@@ -50,6 +50,14 @@ namespace RenomearTudo.Core.Services
                 return false;
             }
 
+            // NTFS/FAT limitam cada componente do caminho a 255 caracteres.
+            // A validação explícita evita deixar a falha aparecer somente no File.Move.
+            if (fileName.Length > 255)
+            {
+                reason = "Nome excede 255 caracteres";
+                return false;
+            }
+
             if (fileName.EndsWith(".", StringComparison.Ordinal) || fileName.EndsWith(" ", StringComparison.Ordinal))
             {
                 reason = "Não pode terminar com ponto ou espaço";

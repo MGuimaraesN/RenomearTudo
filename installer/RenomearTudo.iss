@@ -1,5 +1,5 @@
 #ifndef MyAppVersion
-  #define MyAppVersion "2.0.0"
+  #define MyAppVersion "2.0.3"
 #endif
 
 #define MyAppName "Renomear Tudo"
@@ -41,7 +41,7 @@ Name: "desktopicon"; Description: "Criar atalho na Área de Trabalho"; GroupDesc
 [Files]
 ; O runtime oficial da Microsoft é baixado pelo GitHub Actions durante o build e
 ; fica EMBUTIDO no Setup final. Ele vem primeiro para extração rápida com solid compression.
-Source: "prerequisites\{#DotNetInstaller}"; Flags: dontcopy noencryption
+Source: "prerequisites\{#DotNetInstaller}"; Flags: dontcopy
 Source: "..\src\RenomearTudo.App\bin\Release\net48\RenomearTudo.exe"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\src\RenomearTudo.App\bin\Release\net48\RenomearTudo.exe.config"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\src\RenomearTudo.App\bin\Release\net48\RenomearTudo.Core.dll"; DestDir: "{app}"; Flags: ignoreversion

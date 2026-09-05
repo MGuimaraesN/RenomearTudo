@@ -22,9 +22,15 @@ namespace RenomearTudo.SmokeTests
                 TestPreview(root);
                 TestSimpleReplaceIgnoreCase(root);
                 TestSwapRenameAndUndo(root);
+                TestUndoDestinationDirectoryConflict(root);
                 TestCaseOnlyRename(root);
                 TestDuplicateConflict(root);
+                TestExistingDestinationConflict(root);
+                TestDirectoryDestinationConflict(root);
+                TestConflictChainStabilization(root);
                 TestInvalidName(root);
+                TestInvalidCharactersDoNotThrow(root);
+                TestTooLongFileName(root);
                 TestAccentRemoval();
 
                 Console.WriteLine("Smoke tests: OK");
@@ -83,6 +89,28 @@ namespace RenomearTudo.SmokeTests
             Assert(File.ReadAllText(Path.Combine(root, "B.txt")) == "b", "Conteúdo B incorreto após undo");
         }
 
+        private static void TestUndoDestinationDirectoryConflict(string root)
+        {
+            var source = Path.Combine(root, "UndoSource.txt");
+            var target = Path.Combine(root, "UndoTarget.txt");
+            File.WriteAllText(source, "undo");
+
+            var item = new FileRenameItem(source) { PreviewName = "UndoTarget.txt" };
+            RenameEngine.ValidatePreview(new List<FileRenameItem> { item });
+            var rename = RenameEngine.Execute(new List<FileRenameItem> { item }, CancellationToken.None);
+            Assert(rename.Success && File.Exists(target), "Preparação do teste de Undo falhou");
+
+            Directory.CreateDirectory(source);
+            var blockedUndo = RenameEngine.Undo(rename.Records);
+            Assert(!blockedUndo.Success, "Undo deveria detectar pasta ocupando o destino original");
+            Assert(File.Exists(target), "Undo bloqueado não deveria mover o arquivo");
+
+            Directory.Delete(source);
+            var undo = RenameEngine.Undo(rename.Records);
+            Assert(undo.Success && File.Exists(source), "Undo deveria funcionar após remover o conflito");
+            File.Delete(source);
+        }
+
         private static void TestCaseOnlyRename(string root)
         {
             var path = Path.Combine(root, "case-name.txt");
@@ -100,6 +128,53 @@ namespace RenomearTudo.SmokeTests
             var b = new FileRenameItem(Path.Combine(root, "B.txt")) { PreviewName = "Mesmo.txt" };
             RenameEngine.ValidatePreview(new List<FileRenameItem> { a, b });
             Assert(a.Status == RenameItemStatus.Conflict && b.Status == RenameItemStatus.Conflict, "Destino duplicado deveria gerar conflito");
+        }
+
+
+        private static void TestExistingDestinationConflict(string root)
+        {
+            var existing = Path.Combine(root, "DestinoExistente.txt");
+            File.WriteAllText(existing, "destino");
+            var item = new FileRenameItem(Path.Combine(root, "A.txt")) { PreviewName = "DestinoExistente.txt" };
+            RenameEngine.ValidatePreview(new List<FileRenameItem> { item });
+            Assert(item.Status == RenameItemStatus.Conflict, "Arquivo de destino já existente deveria gerar conflito");
+            File.Delete(existing);
+        }
+
+        private static void TestDirectoryDestinationConflict(string root)
+        {
+            var directory = Path.Combine(root, "DestinoPasta");
+            Directory.CreateDirectory(directory);
+            var item = new FileRenameItem(Path.Combine(root, "A.txt")) { PreviewName = "DestinoPasta" };
+            RenameEngine.ValidatePreview(new List<FileRenameItem> { item });
+            Assert(item.Status == RenameItemStatus.Conflict, "Pasta de destino já existente deveria gerar conflito");
+            Directory.Delete(directory);
+        }
+
+        private static void TestConflictChainStabilization(string root)
+        {
+            var cPath = Path.Combine(root, "C.txt");
+            File.WriteAllText(cPath, "c");
+            var a = new FileRenameItem(Path.Combine(root, "A.txt")) { PreviewName = "B.txt" };
+            var b = new FileRenameItem(Path.Combine(root, "B.txt")) { PreviewName = "C.txt" };
+            RenameEngine.ValidatePreview(new List<FileRenameItem> { a, b });
+            Assert(b.Status == RenameItemStatus.Conflict, "B→C deveria conflitar com C existente");
+            Assert(a.Status == RenameItemStatus.Conflict, "A→B também deve conflitar quando B deixa de ser uma origem móvel");
+            File.Delete(cPath);
+        }
+
+        private static void TestInvalidCharactersDoNotThrow(string root)
+        {
+            var item = new FileRenameItem(Path.Combine(root, "A.txt")) { PreviewName = "nome?.txt" };
+            RenameEngine.ValidatePreview(new List<FileRenameItem> { item });
+            Assert(item.Status == RenameItemStatus.Invalid, "Caracteres inválidos deveriam ser rejeitados sem lançar exceção");
+        }
+
+        private static void TestTooLongFileName(string root)
+        {
+            var item = new FileRenameItem(Path.Combine(root, "A.txt")) { PreviewName = new string('a', 256) };
+            RenameEngine.ValidatePreview(new List<FileRenameItem> { item });
+            Assert(item.Status == RenameItemStatus.Invalid, "Nome com mais de 255 caracteres deveria ser inválido");
         }
 
         private static void TestInvalidName(string root)

@@ -21,7 +21,7 @@ msbuild RenomearTudo.sln /m /p:Configuration=Release
 .\src\RenomearTudo.App\bin\Release\net48\RenomearTudo.exe --startup-check
 ```
 
-O segundo comando é importante: além do motor, ele inicializa de verdade WPF, XAML, recursos, ViewModel e a janela principal. Assim erros que só aparecem ao abrir o programa impedem uma Release.
+O segundo comando é importante: além do motor, ele inicializa de verdade WPF, XAML, recursos, ViewModel, cria uma linha temporária no DataGrid e abre a janela principal. Assim erros que só aparecem ao abrir o programa impedem uma Release.
 
 ## GitHub Actions: somente manual
 
@@ -34,9 +34,9 @@ Para publicar:
 1. GitHub → **Actions**.
 2. Abra **Build Release (Manual)**.
 3. **Run workflow**.
-4. Digite `2.0.2` (ou outra versão `X.Y.Z`).
+4. Digite `2.0.3` (ou outra versão `X.Y.Z`).
 
-Se todas as etapas passarem, o segundo job **Publish GitHub Release** roda obrigatoriamente. Não existe mais a antiga condição `startsWith(github.ref, 'refs/tags/v')`, que fazia o job ser pulado em execuções manuais.
+Se todas as etapas passarem, o segundo job **Publish GitHub Release** roda obrigatoriamente. Se o job de build/testes falhar, o GitHub marcará o job de Release como `skipped` de propósito, para nunca publicar um executável não validado. Não existe mais a antiga condição `startsWith(github.ref, 'refs/tags/v')`, que fazia o job ser pulado em execuções manuais.
 
 ## Etapas do workflow
 
@@ -48,10 +48,11 @@ Se todas as etapas passarem, o segundo job **Publish GitHub Release** roda obrig
 6. baixa o instalador offline oficial do .NET Framework 4.8;
 7. valida a assinatura Authenticode da Microsoft;
 8. compila `installer/RenomearTudo.iss` com Inno Setup;
-9. verifica os artefatos com Microsoft Defender;
-10. gera `SHA256SUMS.txt`;
-11. envia o Artifact;
-12. cria ou atualiza a GitHub Release `vX.Y.Z`.
+9. instala o Setup silenciosamente em uma pasta temporária e executa a aplicação instalada com `--startup-check`;
+10. verifica os artefatos com Microsoft Defender;
+11. gera `SHA256SUMS.txt`;
+12. envia o Artifact;
+13. cria ou atualiza a GitHub Release `vX.Y.Z`. Se a tag informada já existir em outro commit, o workflow interrompe a publicação e exige uma nova versão, evitando associar binários novos a uma tag antiga.
 
 ## Artefatos
 

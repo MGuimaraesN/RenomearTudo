@@ -13,3 +13,5 @@ Compatibilidade pretendida:
 O Windows 7 está fora de suporte da Microsoft; a compatibilidade é mantida em modo best effort.
 
 O arquivo `prerequisites/NDP48-x86-x64-AllOS-ENU.exe` não é versionado no repositório. O GitHub Actions baixa o instalador offline diretamente da Microsoft, valida a assinatura Authenticode e o incorpora no Setup.
+
+Antes da publicação, o workflow instala silenciosamente o Setup gerado em uma pasta temporária e executa `RenomearTudo.exe --startup-check`. Uma Release só é publicada se o executável instalado abrir e inicializar WPF/XAML corretamente.

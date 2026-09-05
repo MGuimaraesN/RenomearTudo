@@ -129,16 +129,16 @@ Fluxo manual:
 
 1. Abra **Actions → Build Release (Manual)**.
 2. Clique em **Run workflow**.
-3. Informe a versão, por exemplo `2.0.2`.
-4. O workflow compila, executa os testes do motor, faz um teste real de inicialização da janela, gera o instalador offline, verifica com Microsoft Defender, calcula SHA-256 e publica a Release.
+3. Informe a versão, por exemplo `2.0.3`.
+4. O workflow compila, executa os testes do motor, faz um teste real de inicialização da janela, gera o instalador offline, instala e testa esse Setup em uma pasta temporária, verifica com Microsoft Defender, calcula SHA-256 e publica a Release.
 
 A Release não depende mais de uma tag criada previamente. O próprio workflow cria a Release/tag `vX.Y.Z` para o commit que foi compilado.
 
 Arquivos publicados:
 
 ```text
-RenomearTudo-Setup-2.0.2.exe       # recomendado; instalador offline
-RenomearTudo-Portable-2.0.2.zip    # versão portátil; requer .NET 4.8 já instalado
+RenomearTudo-Setup-2.0.3.exe       # recomendado; instalador offline
+RenomearTudo-Portable-2.0.3.zip    # versão portátil; requer .NET 4.8 já instalado
 SHA256SUMS.txt
 ```
 

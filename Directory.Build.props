@@ -1,6 +1,7 @@
 <Project>
   <PropertyGroup>
     <LangVersion>10.0</LangVersion>
+    <Version>2.0.3</Version>
     <Deterministic>true</Deterministic>
     <ContinuousIntegrationBuild Condition="'$(CI)' == 'true'">true</ContinuousIntegrationBuild>
     <TreatWarningsAsErrors>false</TreatWarningsAsErrors>

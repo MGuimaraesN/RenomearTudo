@@ -1,5 +1,21 @@
 # Changelog
 
+## 2.0.3 - correção definitiva de inicialização e validação de Release
+
+- Corrigida a falha real que impedia a janela WPF de abrir: `ProgressBar.Value` agora usa binding explícito `Mode=OneWay` para a propriedade somente leitura `ProgressValue`.
+- Auditados os demais bindings editáveis para evitar outro binding TwoWay em propriedade sem setter.
+- O `--startup-check` agora carrega um arquivo temporário e força a criação de uma linha real no DataGrid, testando também bindings que não existem quando a janela está vazia.
+- Validação de nomes reforçada antes de montar o caminho de destino; entradas inválidas deixam de poder gerar exceção durante a prévia.
+- Detectado conflito quando já existe uma **pasta** com o mesmo nome do destino, além de arquivo existente.
+- Adicionado limite explícito de 255 caracteres por componente de nome.
+- Smoke tests ampliados para arquivo/pasta existente, cadeia de conflitos, caracteres inválidos, nomes longos e conflito de pasta durante o Undo.
+- Build de CI alterado para `Rebuild` e warnings tratados como erros.
+- Workflow valida a estrutura do repositório e rejeita `setup.exe`, pasta `Codigo/Código` e artefatos legados `.obj/.bpl/.bpi/.tds`.
+- Adicionado teste de integração do instalador: instala em pasta temporária, verifica os arquivos e executa o aplicativo instalado com `--startup-check` antes da Release.
+- Download do .NET Framework 4.8 offline possui fallback, tentativas e validação de assinatura Authenticode da Microsoft.
+- Publicação da Release agora verifica erros do `gh` e impede reutilizar a mesma tag para um commit diferente.
+- Workflow permanece exclusivamente manual (`workflow_dispatch`).
+
 ## 2.0.2 - correção do teste de GUI e pipeline de Release
 
 - Corrigido falso negativo do `GUI startup test`: aplicativos WPF `WinExe` não fornecem `$LASTEXITCODE` de forma confiável quando iniciados diretamente pelo PowerShell.

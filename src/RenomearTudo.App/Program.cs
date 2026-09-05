@@ -35,15 +35,43 @@ namespace RenomearTudo.App
 
                 var window = new MainWindow();
 
-                // Usado pelo GitHub Actions para validar que XAML, recursos, ViewModel e janela
-                // conseguem ser inicializados de verdade antes de gerar uma Release.
+                // Usado pelo GitHub Actions para validar que XAML, recursos, ViewModel,
+                // bindings da lista e a janela conseguem ser inicializados antes da Release.
                 if (startupCheck)
                 {
-                    window.Show();
-                    window.UpdateLayout();
-                    window.Close();
-                    WriteLog("Startup check: OK.");
-                    return 0;
+                    var probePath = Path.Combine(Path.GetTempPath(), "RenomearTudo-startup-" + Guid.NewGuid().ToString("N") + ".txt");
+                    try
+                    {
+                        File.WriteAllText(probePath, "startup-check", Encoding.UTF8);
+                        var viewModel = window.DataContext as ViewModels.MainViewModel;
+                        if (viewModel == null)
+                            throw new InvalidOperationException("DataContext da janela principal não foi inicializado.");
+
+                        viewModel.AddPaths(new[] { probePath });
+                        if (viewModel.TotalCount != 1)
+                            throw new InvalidOperationException("O arquivo de teste não foi carregado na lista.");
+
+                        viewModel.SelectedFile = viewModel.Files[0];
+                        window.Show();
+                        window.UpdateLayout();
+                        window.Dispatcher.Invoke(() => { }, DispatcherPriority.ApplicationIdle);
+                        window.UpdateLayout();
+                        window.Close();
+
+                        WriteLog("Startup check: OK.");
+                        return 0;
+                    }
+                    finally
+                    {
+                        try
+                        {
+                            if (File.Exists(probePath)) File.Delete(probePath);
+                        }
+                        catch
+                        {
+                            // O arquivo temporário nunca deve mascarar o resultado do diagnóstico.
+                        }
+                    }
                 }
 
                 WriteLog("Janela principal inicializada com sucesso.");

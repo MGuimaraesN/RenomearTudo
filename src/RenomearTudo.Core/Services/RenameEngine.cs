@@ -90,9 +90,9 @@ namespace RenomearTudo.Core.Services
             var candidates = items.Where(i => i.Included).ToList();
             foreach (var item in items)
             {
-                item.NewPath = Path.Combine(item.DirectoryPath, item.PreviewName ?? string.Empty);
                 if (!item.Included)
                 {
+                    item.NewPath = item.OriginalPath;
                     item.Status = RenameItemStatus.Skipped;
                     item.StatusMessage = "Ignorado";
                     continue;
@@ -100,6 +100,7 @@ namespace RenomearTudo.Core.Services
 
                 if (!string.IsNullOrWhiteSpace(item.PreviewError))
                 {
+                    item.NewPath = item.OriginalPath;
                     item.Status = RenameItemStatus.Invalid;
                     item.StatusMessage = item.PreviewError;
                     continue;
@@ -107,8 +108,21 @@ namespace RenomearTudo.Core.Services
 
                 if (!FileNameSanitizer.TryValidateFileName(item.PreviewName, out var reason))
                 {
+                    item.NewPath = item.OriginalPath;
                     item.Status = RenameItemStatus.Invalid;
                     item.StatusMessage = reason;
+                    continue;
+                }
+
+                try
+                {
+                    item.NewPath = Path.Combine(item.DirectoryPath, item.PreviewName);
+                }
+                catch (Exception ex)
+                {
+                    item.NewPath = item.OriginalPath;
+                    item.Status = RenameItemStatus.Invalid;
+                    item.StatusMessage = "Caminho inválido: " + ex.Message;
                     continue;
                 }
 
@@ -154,10 +168,12 @@ namespace RenomearTudo.Core.Services
 
                 foreach (var item in candidates.Where(i => i.Status == RenameItemStatus.Ready).ToList())
                 {
-                    if (File.Exists(item.NewPath) && !movableSources.Contains(item.NewPath))
+                    if ((File.Exists(item.NewPath) || Directory.Exists(item.NewPath)) && !movableSources.Contains(item.NewPath))
                     {
                         item.Status = RenameItemStatus.Conflict;
-                        item.StatusMessage = "Já existe um arquivo com esse nome";
+                        item.StatusMessage = Directory.Exists(item.NewPath)
+                            ? "Já existe uma pasta com esse nome"
+                            : "Já existe um arquivo com esse nome";
                         changed = true;
                     }
                 }
@@ -230,7 +246,7 @@ namespace RenomearTudo.Core.Services
             {
                 if (!File.Exists(record.NewPath))
                     result.Errors.Add("Arquivo não encontrado para desfazer: " + record.NewPath);
-                if (File.Exists(record.OldPath) && !sourcePaths.Contains(record.OldPath))
+                if ((File.Exists(record.OldPath) || Directory.Exists(record.OldPath)) && !sourcePaths.Contains(record.OldPath))
                     result.Errors.Add("Destino original já existe: " + record.OldPath);
             }
 
